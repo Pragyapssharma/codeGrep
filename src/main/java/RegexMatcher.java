@@ -87,13 +87,16 @@ public class RegexMatcher {
                 j++;
             } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
                 int count = 0;
-                while (matchGroup(input, i, token.groupTokens)) {
-                    i = advanceGroup(input, i, token.groupTokens);
+                int newPos = i;
+                while (true) {
+                    int nextPos = matchTokens(input, newPos, token.groupTokens);
+                    if (nextPos == -1) break;
+                    newPos = nextPos;
                     count++;
                 }
                 if (count == 0) return false;
-                j++;
-                
+                i = newPos;
+                j++;                
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                 if (i < input.length() && token.matches(input.charAt(i))) {
                     if (matchesRemaining(input, i + 1, j + 1)) return true;
