@@ -37,9 +37,10 @@ public class RegexMatcher {
     }
 
     private boolean matchesAt(String input, int start) {
-        int i = start;
-        int j = 0;
+        return matchesRemaining(input, start, 0);
+    }
 
+    private boolean matchesRemaining(String input, int i, int j) {
         while (j < tokens.size()) {
             Token token = tokens.get(j);
 
@@ -58,11 +59,20 @@ public class RegexMatcher {
 
                 if (count == 0) return false;
 
-                // Try to match the rest of the tokens from each possible split
                 for (int k = begin + 1; k <= i; k++) {
                     if (matchesRemaining(input, k, j + 1)) {
                         return true;
                     }
+                }
+
+                return false;
+            } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+                // Try skipping the token
+                if (matchesRemaining(input, i, j + 1)) return true;
+
+                // Try consuming one character
+                if (i < input.length() && token.matches(input.charAt(i))) {
+                    if (matchesRemaining(input, i + 1, j + 1)) return true;
                 }
 
                 return false;
@@ -103,46 +113,20 @@ public class RegexMatcher {
                 i++;
             }
 
-            if (i < pattern.length() && pattern.charAt(i) == '+') {
-                token.quantifier = Token.Quantifier.ONE_OR_MORE;
-                i++;
+            // Check for quantifiers: + or ?
+            if (i < pattern.length()) {
+                char next = pattern.charAt(i);
+                if (next == '+') {
+                    token.quantifier = Token.Quantifier.ONE_OR_MORE;
+                    i++;
+                } else if (next == '?') {
+                    token.quantifier = Token.Quantifier.ZERO_OR_ONE;
+                    i++;
+                }
             }
 
             tokens.add(token);
         }
         return tokens;
     }
-    
-    private boolean matchesRemaining(String input, int i, int j) {
-        while (j < tokens.size()) {
-            Token token = tokens.get(j);
-
-            if (token.quantifier == Token.Quantifier.ONE) {
-                if (i >= input.length() || !token.matches(input.charAt(i))) return false;
-                i++;
-                j++;
-            } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                int begin = i;
-                int count = 0;
-
-                while (i < input.length() && token.matches(input.charAt(i))) {
-                    i++;
-                    count++;
-                }
-
-                if (count == 0) return false;
-
-                for (int k = begin + 1; k <= i; k++) {
-                    if (matchesRemaining(input, k, j + 1)) {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-        }
-
-        return !anchoredEnd || (i == input.length());
-    }
-    
 }

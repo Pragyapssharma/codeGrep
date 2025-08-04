@@ -4,7 +4,7 @@ public class Token {
     }
 
     enum Quantifier {
-        ONE, ONE_OR_MORE
+        ONE, ONE_OR_MORE, ZERO_OR_ONE
     }
 
     TokenType type;
