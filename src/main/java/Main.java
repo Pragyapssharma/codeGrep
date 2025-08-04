@@ -15,13 +15,13 @@ public class Main {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     System.err.println("Logs from your program will appear here!");
 
-    // Uncomment this block to pass the first stage
-    // 
-    // if (matchPattern(inputLine, pattern)) {
-    //     System.exit(0);
-    // } else {
-    //     System.exit(1);
-    // }
+     Uncomment this block to pass the first stage
+     
+     if (matchPattern(inputLine, pattern)) {
+         System.exit(0);
+     } else {
+        System.exit(1);
+     }
   }
 
   public static boolean matchPattern(String inputLine, String pattern) {
