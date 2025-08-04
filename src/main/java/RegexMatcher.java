@@ -157,8 +157,10 @@ public class RegexMatcher {
     private int findClosingParen(String pattern, int start) {
         int depth = 0;
         for (int i = start; i < pattern.length(); i++) {
-            if (pattern.charAt(i) == '(') depth++;
-            else if (pattern.charAt(i) == ')') {
+            char c = pattern.charAt(i);
+            if (c == '(') {
+                depth++;
+            } else if (c == ')') {
                 depth--;
                 if (depth == 0) return i;
             }
