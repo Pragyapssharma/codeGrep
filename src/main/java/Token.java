@@ -12,19 +12,21 @@ public class Token {
     final TokenType type;
     final String value;
     final List<List<Token>> alternatives;
+    final List<Token> groupTokens;
     Quantifier quantifier = Quantifier.ONE;
-    List<Token> groupTokens;
 
     public Token(TokenType type, String value) {
         this.type = type;
         this.value = value;
         this.alternatives = null;
+        this.groupTokens = null;
     }
 
     public Token(List<List<Token>> alternatives) {
         this.type = TokenType.ALTERNATION;
         this.value = null;
         this.alternatives = alternatives;
+        this.groupTokens = null;
     }
     
     public Token(List<Token> groupTokens, TokenType type) {
@@ -49,6 +51,7 @@ public class Token {
             case DOT:
                 return true;
             case ALTERNATION:
+            case GROUP:
                 throw new UnsupportedOperationException("Alternation should be handled at a higher level");
             default:
                 return false;
