@@ -39,14 +39,6 @@ public class RegexMatcher {
     private boolean matchesAt(String input, int start) {
         return matchesRemaining(input, start, 0);
     }
-    
-    private boolean matchGroup(String input, int i, List<Token> groupTokens) {
-        return matchTokens(input, i, groupTokens) != -1;
-    }
-
-    private int advanceGroup(String input, int i, List<Token> groupTokens) {
-        return matchTokens(input, i, groupTokens);
-    }
 
     private boolean matchesRemaining(String input, int i, int j) {
         while (j < tokens.size()) {
@@ -66,7 +58,7 @@ public class RegexMatcher {
                 }
                 return false;
             }
-            
+
             if (token.type == Token.TokenType.GROUP) {
                 if (token.quantifier == Token.Quantifier.ONE) {
                     if (!matchGroup(input, i, token.groupTokens)) return false;
@@ -80,17 +72,13 @@ public class RegexMatcher {
                         count++;
                     }
                     if (count == 0) return false;
-                    for (int k = startPos + 1; k <= i; k++) {
-                        if (matchesRemaining(input, k, j + 1)) return true;
-                    }
-                    return false;
+                    return matchesRemaining(input, i, j + 1);
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                    if (matchesRemaining(input, i, j + 1)) return true;
                     if (matchGroup(input, i, token.groupTokens)) {
                         int next = advanceGroup(input, i, token.groupTokens);
                         if (matchesRemaining(input, next, j + 1)) return true;
                     }
-                    return false;
+                    return matchesRemaining(input, i, j + 1);
                 }
                 continue;
             }
@@ -102,33 +90,75 @@ public class RegexMatcher {
             } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
                 int begin = i;
                 int count = 0;
-
                 while (i < input.length() && token.matches(input.charAt(i))) {
                     i++;
                     count++;
                 }
-
                 if (count == 0) return false;
-
-                for (int k = begin + 1; k <= i; k++) {
-                    if (matchesRemaining(input, k, j + 1)) {
-                        return true;
-                    }
-                }
-
-                return false;
+                return matchesRemaining(input, i, j + 1);
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                if (matchesRemaining(input, i, j + 1)) return true;
-
                 if (i < input.length() && token.matches(input.charAt(i))) {
                     if (matchesRemaining(input, i + 1, j + 1)) return true;
                 }
-
-                return false;
+                return matchesRemaining(input, i, j + 1);
             }
         }
 
         return !anchoredEnd || (i == input.length());
+    }
+
+    private boolean matchGroup(String input, int i, List<Token> groupTokens) {
+        return matchTokens(input, i, groupTokens) != -1;
+    }
+
+    private int advanceGroup(String input, int i, List<Token> groupTokens) {
+        return matchTokens(input, i, groupTokens);
+    }
+
+    private int matchTokens(String input, int i, List<Token> groupTokens) {
+        int j = 0;
+        int pos = i;
+        while (j < groupTokens.size()) {
+            Token token = groupTokens.get(j);
+
+            if (token.type == Token.TokenType.ALTERNATION) {
+                boolean matched = false;
+                for (List<Token> alt : token.alternatives) {
+                    int result = matchTokens(input, pos, alt);
+                    if (result != -1) {
+                        pos = result;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) return -1;
+                j++;
+            } else if (token.type == Token.TokenType.GROUP) {
+                int result = matchTokens(input, pos, token.groupTokens);
+                if (result == -1) return -1;
+                pos = result;
+                j++;
+            } else if (token.quantifier == Token.Quantifier.ONE) {
+                if (pos >= input.length() || !token.matches(input.charAt(pos))) return -1;
+                pos++;
+                j++;
+            } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+                if (pos < input.length() && token.matches(input.charAt(pos))) pos++;
+                j++;
+            } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+                int start = pos;
+                int count = 0;
+                while (pos < input.length() && token.matches(input.charAt(pos))) {
+                    pos++;
+                    count++;
+                }
+                if (count == 0) return -1;
+                j++;
+            } else {
+                return -1;
+            }
+        }
+        return pos;
     }
 
     private List<Token> tokenize(String pattern) {
@@ -156,7 +186,11 @@ public class RegexMatcher {
                     }
                 }
 
-                token = new Token(alternatives);
+                if (alternatives.size() == 1) {
+                    token = new Token(alternatives.get(0), Token.TokenType.GROUP);
+                } else {
+                    token = new Token(alternatives);
+                }
                 i = end + 1;
             } else if (c == '\\' && i + 1 < pattern.length()) {
                 char next = pattern.charAt(i + 1);
@@ -202,6 +236,7 @@ public class RegexMatcher {
         return tokens;
     }
 
+
     private int findClosingParen(String pattern, int start) {
         int depth = 0;
         for (int i = start; i < pattern.length(); i++) {
@@ -218,49 +253,6 @@ public class RegexMatcher {
         throw new RuntimeException("Unclosed (");
     }
     
-    private int matchTokens(String input, int i, List<Token> groupTokens) {
-        int j = 0;
-        int pos = i;
-        while (j < groupTokens.size()) {
-            Token token = groupTokens.get(j);
-
-            if (token.type == Token.TokenType.ALTERNATION) {
-                for (List<Token> alt : token.alternatives) {
-                    int result = matchTokens(input, pos, alt);
-                    if (result != -1) {
-                        pos = result;
-                        j++;
-                        continue;
-                    }
-                }
-                return -1;
-            } else if (token.type == Token.TokenType.GROUP) {
-                int result = matchTokens(input, pos, token.groupTokens);
-                if (result == -1) return -1;
-                pos = result;
-                j++;
-            } else if (token.quantifier == Token.Quantifier.ONE) {
-                if (pos >= input.length() || !token.matches(input.charAt(pos))) return -1;
-                pos++;
-                j++;
-            } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                if (pos < input.length() && token.matches(input.charAt(pos))) pos++;
-                j++;
-            } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                int start = pos;
-                int count = 0;
-                while (pos < input.length() && token.matches(input.charAt(pos))) {
-                    pos++;
-                    count++;
-                }
-                if (count == 0) return -1;
-                j++;
-            } else {
-                return -1;
-            }
-        }
-        return pos;
-    }
 
     
 }
