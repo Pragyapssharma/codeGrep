@@ -106,7 +106,7 @@ public class RegexMatcher {
             }
         }
 
-        return !anchoredEnd || (i == input.length());
+        return i == input.length();
     }
     
     
