@@ -38,19 +38,37 @@ public class RegexMatcher {
 
     private boolean matchesAt(String input, int start) {
         int i = start;
-        for (Token token : tokens) {
+        int j = 0;
+
+        while (j < tokens.size()) {
+            Token token = tokens.get(j);
+
             if (token.quantifier == Token.Quantifier.ONE) {
                 if (i >= input.length() || !token.matches(input.charAt(i))) return false;
                 i++;
+                j++;
             } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+                int begin = i;
                 int count = 0;
+
                 while (i < input.length() && token.matches(input.charAt(i))) {
                     i++;
                     count++;
                 }
+
                 if (count == 0) return false;
+
+                // Try to match the rest of the tokens from each possible split
+                for (int k = begin + 1; k <= i; k++) {
+                    if (matchesRemaining(input, k, j + 1)) {
+                        return true;
+                    }
+                }
+
+                return false;
             }
         }
+
         return !anchoredEnd || (i == input.length());
     }
 
@@ -94,4 +112,37 @@ public class RegexMatcher {
         }
         return tokens;
     }
+    
+    private boolean matchesRemaining(String input, int i, int j) {
+        while (j < tokens.size()) {
+            Token token = tokens.get(j);
+
+            if (token.quantifier == Token.Quantifier.ONE) {
+                if (i >= input.length() || !token.matches(input.charAt(i))) return false;
+                i++;
+                j++;
+            } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+                int begin = i;
+                int count = 0;
+
+                while (i < input.length() && token.matches(input.charAt(i))) {
+                    i++;
+                    count++;
+                }
+
+                if (count == 0) return false;
+
+                for (int k = begin + 1; k <= i; k++) {
+                    if (matchesRemaining(input, k, j + 1)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        return !anchoredEnd || (i == input.length());
+    }
+    
 }
