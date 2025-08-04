@@ -105,9 +105,21 @@ public class RegexMatcher {
                 int end = findClosingParen(pattern, i);
                 String group = pattern.substring(i + 1, end);
                 List<List<Token>> alternatives = new ArrayList<>();
-                for (String part : group.split("\\|")) {
-                    alternatives.add(tokenize(part));
+                int lastSplit = 0;
+                int depth = 0;
+
+                for (int j = 0; j <= group.length(); j++) {
+                    if (j == group.length() || (group.charAt(j) == '|' && depth == 0)) {
+                        String part = group.substring(lastSplit, j);
+                        alternatives.add(tokenize(part));
+                        lastSplit = j + 1;
+                    } else if (group.charAt(j) == '(') {
+                        depth++;
+                    } else if (group.charAt(j) == ')') {
+                        depth--;
+                    }
                 }
+
                 token = new Token(alternatives);
                 i = end + 1;
             } else if (c == '\\' && i + 1 < pattern.length()) {
@@ -158,7 +170,9 @@ public class RegexMatcher {
         int depth = 0;
         for (int i = start; i < pattern.length(); i++) {
             char c = pattern.charAt(i);
-            if (c == '(') {
+            if (c == '\\') {
+                i++; // skip escaped character
+            } else if (c == '(') {
                 depth++;
             } else if (c == ')') {
                 depth--;
