@@ -43,7 +43,10 @@ public class RegexMatcher {
     private boolean matchesRemaining(String input, int i, int j) {
         while (j < tokens.size()) {
             Token token = tokens.get(j);
-
+            
+            System.out.println("Matching token: " + token.type + " at input pos: " + i);
+            System.out.println("Current input: " + input.substring(i));
+            
             if (token.type == Token.TokenType.ALTERNATION) {
                 for (List<Token> alt : token.alternatives) {
                     List<Token> savedTokens = this.tokens;
@@ -120,6 +123,10 @@ public class RegexMatcher {
         int pos = i;
         while (j < groupTokens.size()) {
             Token token = groupTokens.get(j);
+            
+            System.out.println("Matching token: " + token.type + " at input pos: " + i);
+            System.out.println("Current input: " + input.substring(i));
+
 
             if (token.type == Token.TokenType.ALTERNATION) {
                 boolean matched = false;
