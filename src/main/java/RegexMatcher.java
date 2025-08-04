@@ -2,8 +2,8 @@ import java.util.*;
 
 public class RegexMatcher {
     private List<Token> tokens;
-    private final boolean anchored;
-    private final boolean anchoredEnd;
+    private boolean anchored;
+    private boolean anchoredEnd;
 
     public RegexMatcher(String pattern) {
         if (pattern.startsWith("^")) {
@@ -50,172 +50,187 @@ public class RegexMatcher {
     }
 
     private boolean matchesRemaining(String input, int i, int j) {
-        while (j < tokens.size()) {
-            Token token = tokens.get(j);
+        if (j == tokens.size()) {
+            return !anchoredEnd || i == input.length();
+        }
 
-            System.out.println("Matching token: " + token.type + " at input pos: " + i);
-            System.out.println("Current input: " + input.substring(i));
+        Token token = tokens.get(j);
 
-            // Handle alternation
-            if (token.type == Token.TokenType.ALTERNATION) {
-                for (List<Token> alt : token.alternatives) {
-                    List<Token> combined = new ArrayList<>(alt);
-                    combined.addAll(tokens.subList(j + 1, tokens.size()));
-                    if (matchesAlternative(input, i, combined)) {
-                        return true;
-                    }
+        // Debug print
+        System.out.println("Matching token: " + token.type + " at input pos: " + i);
+        System.out.println("Current input: " + (i < input.length() ? input.substring(i) : "EOF"));
+
+        if (token.type == Token.TokenType.ALTERNATION) {
+            for (List<Token> alt : token.alternatives) {
+                List<Token> combined = new ArrayList<>(alt);
+                combined.addAll(tokens.subList(j + 1, tokens.size()));
+                RegexMatcher altMatcher = new RegexMatcher("");
+                altMatcher.tokens = combined;
+                altMatcher.anchoredEnd = this.anchoredEnd;
+                altMatcher.anchored = true;
+                if (altMatcher.matchesRemaining(input, i, 0)) {
+                    return true;
                 }
-                return false;
             }
+            return false;
+        }
 
-            // Handle group
-            if (token.type == Token.TokenType.GROUP) {
-                if (token.quantifier == Token.Quantifier.ONE) {
-                    if (!matchGroup(input, i, token.groupTokens)) return false;
-                    i = advanceGroup(input, i, token.groupTokens);
-                    j++;
-                } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                    int count = 0;
-                    while (matchGroup(input, i, token.groupTokens)) {
-                        i = advanceGroup(input, i, token.groupTokens);
-                        count++;
-                    }
-                    if (count == 0) return false;
-                    j++;
-                } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                    if (matchGroup(input, i, token.groupTokens)) {
-                        int next = advanceGroup(input, i, token.groupTokens);
-                        if (matchesRemaining(input, next, j + 1)) return true;
-                    }
-                    j++;
-                    continue;
-                }
-                continue;
-            }
-
-            // Handle CHAR tokens
+        if (token.type == Token.TokenType.GROUP) {
             if (token.quantifier == Token.Quantifier.ONE) {
-                if (i >= input.length() || !token.matches(input.charAt(i))) return false;
-                i++;
-                j++;
+                int posAfter = matchTokens(input, i, token.groupTokens);
+                if (posAfter == -1) return false;
+                return matchesRemaining(input, posAfter, j + 1);
             } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                int count = 0;
-                while (i < input.length() && token.matches(input.charAt(i))) {
-                    i++;
-                    count++;
+                // Try to match group as many times as possible, backtracking on failure
+                int pos = i;
+                List<Integer> positions = new ArrayList<>();
+                while (true) {
+                    int nextPos = matchTokens(input, pos, token.groupTokens);
+                    if (nextPos == -1) break;
+                    positions.add(nextPos);
+                    pos = nextPos;
+                    if (pos == i) break; // avoid infinite loop if group matches empty string
                 }
-                if (count == 0) return false;
-                j++;
+                // Now backtrack trying fewer repetitions
+                for (int count = positions.size(); count >= 1; count--) {
+                    int tryPos = positions.get(count - 1);
+                    if (matchesRemaining(input, tryPos, j + 1)) return true;
+                }
+                return false;
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-            	if (matchesRemaining(input, i, j + 1)) return true;
-
-                if (i < input.length() && token.matches(input.charAt(i))) {
-                    if (matchesRemaining(input, i + 1, j + 1)) return true;
+                // Try skipping group
+                if (matchesRemaining(input, i, j + 1)) return true;
+                // Try matching group once
+                int posAfter = matchTokens(input, i, token.groupTokens);
+                if (posAfter != -1) {
+                    if (matchesRemaining(input, posAfter, j + 1)) return true;
                 }
-
                 return false;
             }
         }
 
-        return i == input.length();
-    }
-    
-    
-    private boolean matchesAlternative(String input, int i, List<Token> altTokens) {
-        List<Token> savedTokens = this.tokens;
-        this.tokens = altTokens;
-        boolean result = matchesRemaining(input, i, 0);
-        this.tokens = savedTokens;
-        return result;
-    }
-    
-    
-    private boolean matchGroup(String input, int i, List<Token> groupTokens) {
-        return matchTokens(input, i, groupTokens) != -1;
-    }
-
-    private int advanceGroup(String input, int i, List<Token> groupTokens) {
-        return matchTokens(input, i, groupTokens);
-    }
-
-    private int matchTokens(String input, int i, List<Token> groupTokens) {
-        int j = 0;
-        int pos = i;
-        while (j < groupTokens.size()) {
-            Token token = groupTokens.get(j);
-            
-            System.out.println("Matching token: " + token.type + " at input pos: " + i);
-            System.out.println("Current input: " + input.substring(i));
-
-
-            if (token.type == Token.TokenType.ALTERNATION) {
-                boolean matched = false;
-                for (List<Token> alt : token.alternatives) {
-                    int result = matchTokens(input, pos, alt);
-                    if (result != -1) {
-                        pos = result;
-                        matched = true;
-                        break;
-                    }
-                }
-                if (!matched) return -1;
-                j++;
-            } else if (token.type == Token.TokenType.GROUP) {
-            	if (token.quantifier == Token.Quantifier.ONE) {
-                    int result = matchTokens(input, pos, token.groupTokens);
-                    if (result == -1) return -1;
-                    pos = result;
-                    j++;
-                } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                    int count = 0;
-                    while (true) {
-                        int result = matchTokens(input, pos, token.groupTokens);
-                        if (result == -1) break;
-                        pos = result;
-                        count++;
-                    }
-                    if (count == 0) return -1;
-                    j++;
-                } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                    int skipResult = pos;
-                    int matchResult = matchTokens(input, pos, token.groupTokens);
-
-                    if (matchResult != -1) {
-                        int afterMatch = matchTokens(input, matchResult, groupTokens.subList(j + 1, groupTokens.size()));
-                        if (afterMatch != -1) return afterMatch;
-                    }
-                    j++;
-                    continue;
-                } else {
-                    return -1;
-                }
-            } else if (token.quantifier == Token.Quantifier.ONE) {
-                if (pos >= input.length() || !token.matches(input.charAt(pos))) return -1;
+        // Handle CHAR, DIGIT, WORD, DOT, etc.
+        if (token.quantifier == Token.Quantifier.ONE) {
+            if (i >= input.length() || !token.matches(input.charAt(i))) return false;
+            return matchesRemaining(input, i + 1, j + 1);
+        } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+            int pos = i;
+            List<Integer> positions = new ArrayList<>();
+            while (pos < input.length() && token.matches(input.charAt(pos))) {
+                positions.add(pos + 1);
                 pos++;
-                j++;
-            } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-            	int skipPos = matchTokens(input, pos, groupTokens.subList(j + 1, groupTokens.size()));
-                if (skipPos != -1) return skipPos;
+            }
+            if (positions.isEmpty()) return false;
+            // Backtrack on number of matches
+            for (int count = positions.size(); count >= 1; count--) {
+                int tryPos = positions.get(count - 1);
+                if (matchesRemaining(input, tryPos, j + 1)) return true;
+            }
+            return false;
+        } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+            // Try skipping token
+            if (matchesRemaining(input, i, j + 1)) return true;
+            // Try matching token once
+            if (i < input.length() && token.matches(input.charAt(i))) {
+                if (matchesRemaining(input, i + 1, j + 1)) return true;
+            }
+            return false;
+        }
 
-                if (pos < input.length() && token.matches(input.charAt(pos))) {
-                    int matchPos = matchTokens(input, pos + 1, groupTokens.subList(j + 1, groupTokens.size()));
-                    if (matchPos != -1) return matchPos;
+        return false;
+    }
+    
+    private int matchTokens(String input, int i, List<Token> groupTokens) {
+        return matchTokensHelper(input, i, groupTokens, 0);
+    }
+
+    private int matchTokensHelper(String input, int pos, List<Token> groupTokens, int idx) {
+        if (idx == groupTokens.size()) return pos;
+
+        Token token = groupTokens.get(idx);
+
+        // Debug print
+        System.out.println("Matching token in group: " + token.type + " at input pos: " + pos);
+        System.out.println("Current input: " + (pos < input.length() ? input.substring(pos) : "EOF"));
+
+        if (token.type == Token.TokenType.ALTERNATION) {
+            for (List<Token> alt : token.alternatives) {
+                int res = matchTokensHelper(input, pos, alt, 0);
+                if (res != -1) {
+                    int afterAlt = matchTokensHelper(input, res, groupTokens, idx + 1);
+                    if (afterAlt != -1) return afterAlt;
                 }
+            }
+            return -1;
+        }
 
-                return -1;
+        if (token.type == Token.TokenType.GROUP) {
+            if (token.quantifier == Token.Quantifier.ONE) {
+                int res = matchTokens(input, pos, token.groupTokens);
+                if (res == -1) return -1;
+                return matchTokensHelper(input, res, groupTokens, idx + 1);
             } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                int count = 0;
-                while (pos < input.length() && token.matches(input.charAt(pos))) {
-                    pos++;
-                    count++;
+                // Greedy with backtracking
+                int currentPos = pos;
+                List<Integer> positions = new ArrayList<>();
+                while (true) {
+                    int nextPos = matchTokens(input, currentPos, token.groupTokens);
+                    if (nextPos == -1) break;
+                    if (nextPos == currentPos) break; // prevent infinite loop on empty matches
+                    positions.add(nextPos);
+                    currentPos = nextPos;
                 }
-                if (count == 0) return -1;
-                j++;
-            } else {
+                for (int count = positions.size(); count >= 1; count--) {
+                    int tryPos = positions.get(count - 1);
+                    int afterGroup = matchTokensHelper(input, tryPos, groupTokens, idx + 1);
+                    if (afterGroup != -1) return afterGroup;
+                }
+                return -1;
+            } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+                // Try skip group
+                int skipRes = matchTokensHelper(input, pos, groupTokens, idx + 1);
+                if (skipRes != -1) return skipRes;
+                // Try match group once
+                int matchRes = matchTokens(input, pos, token.groupTokens);
+                if (matchRes != -1) {
+                    int afterMatch = matchTokensHelper(input, matchRes, groupTokens, idx + 1);
+                    if (afterMatch != -1) return afterMatch;
+                }
                 return -1;
             }
         }
-        return pos;
+
+        // Handle tokens with quantifiers ONE, ONE_OR_MORE, ZERO_OR_ONE
+        if (token.quantifier == Token.Quantifier.ONE) {
+            if (pos >= input.length() || !token.matches(input.charAt(pos))) return -1;
+            return matchTokensHelper(input, pos + 1, groupTokens, idx + 1);
+        } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+            int currentPos = pos;
+            List<Integer> positions = new ArrayList<>();
+            while (currentPos < input.length() && token.matches(input.charAt(currentPos))) {
+                currentPos++;
+                positions.add(currentPos);
+            }
+            if (positions.isEmpty()) return -1;
+            for (int count = positions.size(); count >= 1; count--) {
+                int tryPos = positions.get(count - 1);
+                int afterToken = matchTokensHelper(input, tryPos, groupTokens, idx + 1);
+                if (afterToken != -1) return afterToken;
+            }
+            return -1;
+        } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+            // Try skip
+            int skipRes = matchTokensHelper(input, pos, groupTokens, idx + 1);
+            if (skipRes != -1) return skipRes;
+            // Try match token once
+            if (pos < input.length() && token.matches(input.charAt(pos))) {
+                int matchRes = matchTokensHelper(input, pos + 1, groupTokens, idx + 1);
+                if (matchRes != -1) return matchRes;
+            }
+            return -1;
+        }
+
+        return -1;
     }
 
     private List<Token> tokenize(String pattern) {
