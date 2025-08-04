@@ -3,6 +3,7 @@ import java.util.*;
 public class RegexMatcher {
 	private final List<Token> tokens;
 	private final boolean anchored;
+	private final boolean anchoredEnd;
 
 	public RegexMatcher(String pattern) {
 		if (pattern.startsWith("^")) {
@@ -11,6 +12,14 @@ public class RegexMatcher {
 		} else {
 			this.anchored = false;
 		}
+		
+		 if (pattern.endsWith("$")) {
+			    this.anchoredEnd = true;
+			    pattern = pattern.substring(0, pattern.length() - 1);
+			  } else {
+			    this.anchoredEnd = false;
+			  }
+		
 		this.tokens = tokenize(pattern);
 	}
 
@@ -28,14 +37,15 @@ public class RegexMatcher {
 	}
 
 	private boolean matchesAt(String input, int start) {
-		for (int i = 0; i < tokens.size(); i++) {
-			if (start + i >= input.length())
-				return false;
-			if (!tokens.get(i).matches(input.charAt(start + i)))
-				return false;
+		  for (int i = 0; i < tokens.size(); i++) {
+		    if (start + i >= input.length()) 
+		    	return false;
+		    if (!tokens.get(i).matches(input.charAt(start + i))) 
+		    	return false;
+		  }
+
+		  return !anchoredEnd || (start + tokens.size() == input.length());
 		}
-		return true;
-	}
 
 	private List<Token> tokenize(String pattern) {
 		List<Token> tokens = new ArrayList<>();
