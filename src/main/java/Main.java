@@ -42,6 +42,15 @@ public class Main {
           return true;
         }
       }
+	return false;
+    } else if (pattern.startsWith("[") && pattern.endsWith("]")) {
+      // [abc] matches any character inside the brackets
+      String group = pattern.substring(1, pattern.length() - 1);
+      for (char c : inputLine.toCharArray()) {
+        if (group.indexOf(c) != -1) {
+          return true;
+        }
+      }
 
       return false;
     } else {
