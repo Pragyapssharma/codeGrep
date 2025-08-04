@@ -22,6 +22,12 @@ public class RegexMatcher {
 
         this.tokens = tokenize(pattern);
     }
+    
+    public RegexMatcher(List<Token> tokens, boolean anchored, boolean anchoredEnd) {
+        this.tokens = tokens;
+        this.anchored = anchored;
+        this.anchoredEnd = anchoredEnd;
+    }
 
     public boolean matches(String input) {
         if (anchored) {
@@ -64,10 +70,7 @@ public class RegexMatcher {
             for (List<Token> alt : token.alternatives) {
                 List<Token> combined = new ArrayList<>(alt);
                 combined.addAll(tokens.subList(j + 1, tokens.size()));
-                RegexMatcher altMatcher = new RegexMatcher("");
-                altMatcher.tokens = combined;
-                altMatcher.anchoredEnd = this.anchoredEnd;
-                altMatcher.anchored = true;
+                RegexMatcher altMatcher = new RegexMatcher(combined, true, this.anchoredEnd);
                 if (altMatcher.matchesRemaining(input, i, 0)) {
                     return true;
                 }
