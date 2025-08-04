@@ -12,9 +12,10 @@ public class Main {
     Scanner scanner = new Scanner(System.in);
     String inputLine = scanner.nextLine();
 
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
+    // Debugging output
     System.err.println("Logs from your program will appear here!");
      
+//  Match and exit
      if (matchPattern(inputLine, pattern)) {
          System.exit(0);
      } else {
@@ -33,6 +34,15 @@ public class Main {
           return true;
         }
       }
+      return false;
+    } else if (pattern.equals("\\w")) {
+      // \w matches any alphanumeric character or underscore
+      for (char c : inputLine.toCharArray()) {
+        if (Character.isLetterOrDigit(c) || c == '_') {
+          return true;
+        }
+      }
+
       return false;
     } else {
       throw new RuntimeException("Unhandled pattern: " + pattern);
