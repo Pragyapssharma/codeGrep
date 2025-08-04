@@ -1,7 +1,7 @@
 import java.util.*;
 
 public class RegexMatcher {
-    private final List<Token> tokens;
+    private List<Token> tokens;
     private final boolean anchored;
     private final boolean anchoredEnd;
 
@@ -44,6 +44,21 @@ public class RegexMatcher {
         while (j < tokens.size()) {
             Token token = tokens.get(j);
 
+            if (token.type == Token.TokenType.ALTERNATION) {
+                for (List<Token> alt : token.alternatives) {
+                    List<Token> savedTokens = this.tokens;
+                    List<Token> combined = new ArrayList<>(alt);
+                    combined.addAll(tokens.subList(j + 1, tokens.size()));
+                    this.tokens = combined;
+                    if (matchesRemaining(input, i, 0)) {
+                        this.tokens = savedTokens;
+                        return true;
+                    }
+                    this.tokens = savedTokens;
+                }
+                return false;
+            }
+
             if (token.quantifier == Token.Quantifier.ONE) {
                 if (i >= input.length() || !token.matches(input.charAt(i))) return false;
                 i++;
@@ -67,10 +82,8 @@ public class RegexMatcher {
 
                 return false;
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                // Try skipping the token
                 if (matchesRemaining(input, i, j + 1)) return true;
 
-                // Try consuming one character
                 if (i < input.length() && token.matches(input.charAt(i))) {
                     if (matchesRemaining(input, i + 1, j + 1)) return true;
                 }
@@ -88,7 +101,16 @@ public class RegexMatcher {
             char c = pattern.charAt(i);
             Token token;
 
-            if (c == '\\' && i + 1 < pattern.length()) {
+            if (c == '(') {
+                int end = findClosingParen(pattern, i);
+                String group = pattern.substring(i + 1, end);
+                List<List<Token>> alternatives = new ArrayList<>();
+                for (String part : group.split("\\|")) {
+                    alternatives.add(tokenize(part));
+                }
+                token = new Token(alternatives);
+                i = end + 1;
+            } else if (c == '\\' && i + 1 < pattern.length()) {
                 char next = pattern.charAt(i + 1);
                 if (next == 'd') {
                     token = new Token(Token.TokenType.DIGIT, "");
@@ -116,7 +138,6 @@ public class RegexMatcher {
                 i++;
             }
 
-            // Check for quantifiers: + or ?
             if (i < pattern.length()) {
                 char next = pattern.charAt(i);
                 if (next == '+') {
@@ -131,5 +152,17 @@ public class RegexMatcher {
             tokens.add(token);
         }
         return tokens;
+    }
+
+    private int findClosingParen(String pattern, int start) {
+        int depth = 0;
+        for (int i = start; i < pattern.length(); i++) {
+            if (pattern.charAt(i) == '(') depth++;
+            else if (pattern.charAt(i) == ')') {
+                depth--;
+                if (depth == 0) return i;
+            }
+        }
+        throw new RuntimeException("Unclosed (");
     }
 }

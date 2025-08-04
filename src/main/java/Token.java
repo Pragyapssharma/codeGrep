@@ -1,24 +1,29 @@
+import java.util.*;
+
 public class Token {
     enum TokenType {
-        DIGIT, WORD, CHAR, POSITIVE_GROUP, NEGATIVE_GROUP, DOT
+        DIGIT, WORD, CHAR, POSITIVE_GROUP, NEGATIVE_GROUP, DOT, ALTERNATION
     }
 
     enum Quantifier {
         ONE, ONE_OR_MORE, ZERO_OR_ONE
     }
 
-    TokenType type;
-    String value;
-    Quantifier quantifier;
+    final TokenType type;
+    final String value;
+    final List<List<Token>> alternatives;
+    Quantifier quantifier = Quantifier.ONE;
 
     public Token(TokenType type, String value) {
-        this(type, value, Quantifier.ONE);
-    }
-
-    public Token(TokenType type, String value, Quantifier quantifier) {
         this.type = type;
         this.value = value;
-        this.quantifier = quantifier;
+        this.alternatives = null;
+    }
+
+    public Token(List<List<Token>> alternatives) {
+        this.type = TokenType.ALTERNATION;
+        this.value = null;
+        this.alternatives = alternatives;
     }
 
     public boolean matches(char c) {
@@ -28,13 +33,15 @@ public class Token {
             case WORD:
                 return Character.isLetterOrDigit(c) || c == '_';
             case CHAR:
-                return c == value.charAt(0);
+                return value.charAt(0) == c;
             case POSITIVE_GROUP:
-                return value.indexOf(c) != -1;
+                return value.indexOf(c) >= 0;
             case NEGATIVE_GROUP:
                 return value.indexOf(c) == -1;
             case DOT:
                 return true;
+            case ALTERNATION:
+                throw new UnsupportedOperationException("Alternation should be handled at a higher level");
             default:
                 return false;
         }
