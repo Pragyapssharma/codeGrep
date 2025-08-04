@@ -43,16 +43,25 @@ public class Main {
         }
       }
 	return false;
+    } else if (pattern.startsWith("[^") && pattern.endsWith("]")) {
+      // Negative character group: [^abc]
+      String excluded = pattern.substring(2, pattern.length() - 1);
+      for (char c : inputLine.toCharArray()) {
+        if (excluded.indexOf(c) == -1) {
+          return true; // Found a character NOT in the excluded group
+        }
+      }
+      return false;
     } else if (pattern.startsWith("[") && pattern.endsWith("]")) {
-      // [abc] matches any character inside the brackets
+      // Positive character group: [abc]
       String group = pattern.substring(1, pattern.length() - 1);
       for (char c : inputLine.toCharArray()) {
         if (group.indexOf(c) != -1) {
           return true;
         }
       }
-
       return false;
+
     } else {
       throw new RuntimeException("Unhandled pattern: " + pattern);
     }
