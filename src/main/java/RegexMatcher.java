@@ -2,12 +2,22 @@ import java.util.*;
 
 public class RegexMatcher {
   private final List<Token> tokens;
+private final boolean anchored;
 
   public RegexMatcher(String pattern) {
-    this.tokens = tokenize(pattern);
+    if (pattern.startsWith("^")) {
+    this.anchored = true;
+    pattern = pattern.substring(1); // remove the anchor for tokenization
+  } else {
+    this.anchored = false;
+  }
+  this.tokens = tokenize(pattern);
   }
 
   public boolean matches(String input) {
+    if (anchored) {
+    return matchesAt(input, 0); // only match at start
+  } else {
     for (int i = 0; i <= input.length() - tokens.size(); i++) {
       if (matchesAt(input, i)) {
         return true;
