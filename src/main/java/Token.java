@@ -2,7 +2,7 @@ import java.util.*;
 
 public class Token {
     enum TokenType {
-        DIGIT, WORD, CHAR, POSITIVE_GROUP, NEGATIVE_GROUP, DOT, ALTERNATION
+        DIGIT, WORD, CHAR, POSITIVE_GROUP, NEGATIVE_GROUP, DOT, ALTERNATION, GROUP
     }
 
     enum Quantifier {
@@ -13,6 +13,7 @@ public class Token {
     final String value;
     final List<List<Token>> alternatives;
     Quantifier quantifier = Quantifier.ONE;
+    List<Token> groupTokens;
 
     public Token(TokenType type, String value) {
         this.type = type;
@@ -24,6 +25,13 @@ public class Token {
         this.type = TokenType.ALTERNATION;
         this.value = null;
         this.alternatives = alternatives;
+    }
+    
+    public Token(List<Token> groupTokens, TokenType type) {
+        this.type = type;
+        this.value = null;
+        this.alternatives = null;
+        this.groupTokens = groupTokens;
     }
 
     public boolean matches(char c) {
