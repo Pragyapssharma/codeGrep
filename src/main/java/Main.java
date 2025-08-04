@@ -15,55 +15,13 @@ public class Main {
     // Debugging output
     System.err.println("Logs from your program will appear here!");
      
-//  Match and exit
-     if (matchPattern(inputLine, pattern)) {
-         System.exit(0);
-     } else {
-        System.exit(1);
-     }
-  }
-
-  public static boolean matchPattern(String inputLine, String pattern) {
-    if (pattern.length() == 1) {
-      // Single character match
-      return inputLine.contains(pattern);
-    } else if (pattern.equals("\\d")) {
-      // \d matches any digit
-      for (char c : inputLine.toCharArray()) {
-        if (Character.isDigit(c)) {
-          return true;
-        }
-      }
-      return false;
-    } else if (pattern.equals("\\w")) {
-      // \w matches any alphanumeric character or underscore
-      for (char c : inputLine.toCharArray()) {
-        if (Character.isLetterOrDigit(c) || c == '_') {
-          return true;
-        }
-      }
-	return false;
-    } else if (pattern.startsWith("[^") && pattern.endsWith("]")) {
-      // Negative character group: [^abc]
-      String excluded = pattern.substring(2, pattern.length() - 1);
-      for (char c : inputLine.toCharArray()) {
-        if (excluded.indexOf(c) == -1) {
-          return true; // Found a character NOT in the excluded group
-        }
-      }
-      return false;
-    } else if (pattern.startsWith("[") && pattern.endsWith("]")) {
-      // Positive character group: [abc]
-      String group = pattern.substring(1, pattern.length() - 1);
-      for (char c : inputLine.toCharArray()) {
-        if (group.indexOf(c) != -1) {
-          return true;
-        }
-      }
-      return false;
-
+ RegexMatcher matcher = new RegexMatcher(pattern);
+    if (matcher.matches(inputLine)) {
+      System.exit(0);
     } else {
-      throw new RuntimeException("Unhandled pattern: " + pattern);
+      System.exit(1);
     }
   }
+
 }
+
