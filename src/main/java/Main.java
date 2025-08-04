@@ -24,7 +24,16 @@ public class Main {
 
   public static boolean matchPattern(String inputLine, String pattern) {
     if (pattern.length() == 1) {
+      // Single character match
       return inputLine.contains(pattern);
+    } else if (pattern.equals("\\d")) {
+      // \d matches any digit
+      for (char c : inputLine.toCharArray()) {
+        if (Character.isDigit(c)) {
+          return true;
+        }
+      }
+      return false;
     } else {
       throw new RuntimeException("Unhandled pattern: " + pattern);
     }
