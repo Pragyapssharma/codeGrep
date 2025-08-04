@@ -1,6 +1,6 @@
 public class Token {
     enum TokenType {
-        DIGIT, WORD, CHAR, POSITIVE_GROUP, NEGATIVE_GROUP
+        DIGIT, WORD, CHAR, POSITIVE_GROUP, NEGATIVE_GROUP, DOT
     }
 
     enum Quantifier {
@@ -33,6 +33,8 @@ public class Token {
                 return value.indexOf(c) != -1;
             case NEGATIVE_GROUP:
                 return value.indexOf(c) == -1;
+            case DOT:
+                return true;
             default:
                 return false;
         }

@@ -108,6 +108,9 @@ public class RegexMatcher {
                     token = new Token(Token.TokenType.POSITIVE_GROUP, group);
                 }
                 i = end + 1;
+            } else if (c == '.') {
+                token = new Token(Token.TokenType.DOT, "");
+                i++;
             } else {
                 token = new Token(Token.TokenType.CHAR, String.valueOf(c));
                 i++;
