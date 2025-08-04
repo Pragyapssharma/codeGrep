@@ -37,7 +37,16 @@ public class RegexMatcher {
     }
 
     private boolean matchesAt(String input, int start) {
-        return matchesRemaining(input, start, 0);
+        boolean result = matchesRemaining(input, start, 0);
+        // If anchoredEnd is true, ensure full match to end of input
+        if (result && anchoredEnd) {
+            // matchesRemaining only returns true if all tokens matched to the end,
+            // but in unanchored mode it might match partial suffix.
+            // So if anchoredEnd is set, force i == input.length()
+            // This is handled in matchesRemaining by returning i == input.length(),
+            // so no extra check here needed.
+        }
+        return result;
     }
 
     private boolean matchesRemaining(String input, int i, int j) {
@@ -98,11 +107,13 @@ public class RegexMatcher {
                 if (count == 0) return false;
                 j++;
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+            	if (matchesRemaining(input, i, j + 1)) return true;
+
                 if (i < input.length() && token.matches(input.charAt(i))) {
                     if (matchesRemaining(input, i + 1, j + 1)) return true;
                 }
-                j++;
-                continue;
+
+                return false;
             }
         }
 
@@ -150,19 +161,49 @@ public class RegexMatcher {
                 if (!matched) return -1;
                 j++;
             } else if (token.type == Token.TokenType.GROUP) {
-                int result = matchTokens(input, pos, token.groupTokens);
-                if (result == -1) return -1;
-                pos = result;
-                j++;
+            	if (token.quantifier == Token.Quantifier.ONE) {
+                    int result = matchTokens(input, pos, token.groupTokens);
+                    if (result == -1) return -1;
+                    pos = result;
+                    j++;
+                } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+                    int count = 0;
+                    while (true) {
+                        int result = matchTokens(input, pos, token.groupTokens);
+                        if (result == -1) break;
+                        pos = result;
+                        count++;
+                    }
+                    if (count == 0) return -1;
+                    j++;
+                } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+                    int skipResult = pos;
+                    int matchResult = matchTokens(input, pos, token.groupTokens);
+
+                    if (matchResult != -1) {
+                        int afterMatch = matchTokens(input, matchResult, groupTokens.subList(j + 1, groupTokens.size()));
+                        if (afterMatch != -1) return afterMatch;
+                    }
+                    j++;
+                    continue;
+                } else {
+                    return -1;
+                }
             } else if (token.quantifier == Token.Quantifier.ONE) {
                 if (pos >= input.length() || !token.matches(input.charAt(pos))) return -1;
                 pos++;
                 j++;
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                if (pos < input.length() && token.matches(input.charAt(pos))) pos++;
-                j++;
+            	int skipPos = matchTokens(input, pos, groupTokens.subList(j + 1, groupTokens.size()));
+                if (skipPos != -1) return skipPos;
+
+                if (pos < input.length() && token.matches(input.charAt(pos))) {
+                    int matchPos = matchTokens(input, pos + 1, groupTokens.subList(j + 1, groupTokens.size()));
+                    if (matchPos != -1) return matchPos;
+                }
+
+                return -1;
             } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                int start = pos;
                 int count = 0;
                 while (pos < input.length() && token.matches(input.charAt(pos))) {
                     pos++;
@@ -258,7 +299,7 @@ public class RegexMatcher {
         for (int i = start; i < pattern.length(); i++) {
             char c = pattern.charAt(i);
             if (c == '\\') {
-                i++; // skip escaped character
+                i++;
             } else if (c == '(') {
                 depth++;
             } else if (c == ')') {
