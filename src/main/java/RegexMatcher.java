@@ -43,73 +43,82 @@ public class RegexMatcher {
     private boolean matchesRemaining(String input, int i, int j) {
         while (j < tokens.size()) {
             Token token = tokens.get(j);
-            
+
             System.out.println("Matching token: " + token.type + " at input pos: " + i);
             System.out.println("Current input: " + input.substring(i));
-            
+
+            // Handle alternation
             if (token.type == Token.TokenType.ALTERNATION) {
                 for (List<Token> alt : token.alternatives) {
-                    List<Token> savedTokens = this.tokens;
                     List<Token> combined = new ArrayList<>(alt);
                     combined.addAll(tokens.subList(j + 1, tokens.size()));
-                    this.tokens = combined;
-                    if (matchesRemaining(input, i, 0)) {
-                        this.tokens = savedTokens;
+                    if (matchesAlternative(input, i, combined)) {
                         return true;
                     }
-                    this.tokens = savedTokens;
                 }
                 return false;
             }
 
+            // Handle group
             if (token.type == Token.TokenType.GROUP) {
                 if (token.quantifier == Token.Quantifier.ONE) {
                     if (!matchGroup(input, i, token.groupTokens)) return false;
                     i = advanceGroup(input, i, token.groupTokens);
                     j++;
                 } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                    int startPos = i;
                     int count = 0;
                     while (matchGroup(input, i, token.groupTokens)) {
                         i = advanceGroup(input, i, token.groupTokens);
                         count++;
                     }
                     if (count == 0) return false;
-                    return matchesRemaining(input, i, j + 1);
+                    j++;
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                     if (matchGroup(input, i, token.groupTokens)) {
                         int next = advanceGroup(input, i, token.groupTokens);
                         if (matchesRemaining(input, next, j + 1)) return true;
                     }
-                    return matchesRemaining(input, i, j + 1);
+                    j++;
+                    continue;
                 }
                 continue;
             }
 
+            // Handle CHAR tokens
             if (token.quantifier == Token.Quantifier.ONE) {
                 if (i >= input.length() || !token.matches(input.charAt(i))) return false;
                 i++;
                 j++;
             } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                int begin = i;
                 int count = 0;
                 while (i < input.length() && token.matches(input.charAt(i))) {
                     i++;
                     count++;
                 }
                 if (count == 0) return false;
-                return matchesRemaining(input, i, j + 1);
+                j++;
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                 if (i < input.length() && token.matches(input.charAt(i))) {
                     if (matchesRemaining(input, i + 1, j + 1)) return true;
                 }
-                return matchesRemaining(input, i, j + 1);
+                j++;
+                continue;
             }
         }
 
         return !anchoredEnd || (i == input.length());
     }
-
+    
+    
+    private boolean matchesAlternative(String input, int i, List<Token> altTokens) {
+        List<Token> savedTokens = this.tokens;
+        this.tokens = altTokens;
+        boolean result = matchesRemaining(input, i, 0);
+        this.tokens = savedTokens;
+        return result;
+    }
+    
+    
     private boolean matchGroup(String input, int i, List<Token> groupTokens) {
         return matchTokens(input, i, groupTokens) != -1;
     }
