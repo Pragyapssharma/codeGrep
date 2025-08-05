@@ -69,8 +69,9 @@ public class RegexMatcher {
                     System.out.println("Trying ONE_OR_MORE for group at input pos: " + i);
                     while (pos < input.length() && matchGroup(input, pos, token.groupTokens)) {
                         int next = advanceGroup(input, pos, token.groupTokens);
-                        count++;
+                        if (next == pos) break;  // prevents infinite loop if nothing advances
                         pos = next;
+                        count++;
                     }
                     if (count == 0) return false;
                     if (j + 1 >= tokens.size()) {
