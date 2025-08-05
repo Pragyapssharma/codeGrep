@@ -70,15 +70,14 @@ public class RegexMatcher {
                     while (pos < input.length() && matchGroup(input, pos, token.groupTokens)) {
                         int next = advanceGroup(input, pos, token.groupTokens);
                         if (next == pos) break;  // prevents infinite loop if nothing advances
-                        pos = next;
                         count++;
+                        pos = next;
+                        
                     }
                     if (count == 0) return false;
-                    if (j + 1 >= tokens.size()) {
-                    	System.out.println("Reached end of tokens, input pos: " + pos + " / " + input.length());
-                        return !anchoredEnd || (pos == input.length());
-                    }
-                    return matchesRemaining(input, pos, j + 1);
+                    return (j + 1 >= tokens.size())
+                            ? (!anchoredEnd || pos == input.length())
+                            : matchesRemaining(input, pos, j + 1);
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                     if (matchGroup(input, i, token.groupTokens)) {
                         int next = advanceGroup(input, i, token.groupTokens);
@@ -162,7 +161,6 @@ public class RegexMatcher {
                 if (pos < input.length() && token.matches(input.charAt(pos))) pos++;
                 j++;
             } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                int start = pos;
                 int count = 0;
                 while (pos < input.length() && token.matches(input.charAt(pos))) {
                     pos++;
