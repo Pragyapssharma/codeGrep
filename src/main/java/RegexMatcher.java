@@ -140,17 +140,13 @@ public class RegexMatcher {
             System.out.println("Current input: " + (pos < input.length() ? input.substring(pos) : "EOF"));
 
             if (token.type == Token.TokenType.ALTERNATION) {
-                boolean matched = false;
                 for (List<Token> alt : token.alternatives) {
-                    int result = matchTokens(input, pos, alt);
-                    if (result != -1) {
-                        pos = result;
-                        matched = true;
-                        break;
-                    }
+                    List<Token> altChain = new ArrayList<>(alt);
+                    altChain.addAll(groupTokens.subList(j + 1, groupTokens.size()));
+                    int result = matchTokens(input, pos, altChain);
+                    if (result != -1) return result;
                 }
-                if (!matched) return -1;
-                j++;
+                return -1;
             } else if (token.type == Token.TokenType.GROUP) {
                 int result = matchTokens(input, pos, token.groupTokens);
                 if (result == -1) return -1;
