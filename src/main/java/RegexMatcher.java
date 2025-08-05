@@ -74,6 +74,7 @@ public class RegexMatcher {
                     }
                     if (count == 0) return false;
                     if (j + 1 >= tokens.size()) {
+                    	System.out.println("Reached end of tokens, input pos: " + pos + " / " + input.length());
                         return !anchoredEnd || (pos == input.length());
                     }
                     return matchesRemaining(input, pos, j + 1);
