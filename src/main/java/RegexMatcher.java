@@ -64,13 +64,15 @@ public class RegexMatcher {
                     i = advanceGroup(input, i, token.groupTokens);
                     j++;
                 } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+                    int pos = i;
                     int count = 0;
-                    while (matchGroup(input, i, token.groupTokens)) {
-                        i = advanceGroup(input, i, token.groupTokens);
+                    while (matchGroup(input, pos, token.groupTokens)) {
+                        int next = advanceGroup(input, pos, token.groupTokens);
                         count++;
+                        pos = next;
+                        if (matchesRemaining(input, pos, j + 1)) return true;
                     }
-                    if (count == 0) return false;
-                    j++;
+                    return count > 0 && matchesRemaining(input, pos, j + 1);
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                     if (matchGroup(input, i, token.groupTokens)) {
                         int next = advanceGroup(input, i, token.groupTokens);
