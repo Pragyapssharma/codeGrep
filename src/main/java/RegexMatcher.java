@@ -141,13 +141,22 @@ public class RegexMatcher {
             System.out.println("Current input: " + (pos < input.length() ? input.substring(pos) : "EOF"));
 
             if (token.type == Token.TokenType.ALTERNATION) {
-                for (List<Token> alt : token.alternatives) {
-                    List<Token> altChain = new ArrayList<>(alt);
-                    altChain.addAll(groupTokens.subList(j + 1, groupTokens.size()));
-                    int result = matchTokens(input, pos, altChain);
-                    if (result != -1) return result;
-                }
-                return -1;
+            	int bestMatchPosition = -1;
+
+            	for (List<Token> alternative : token.alternatives) {
+            	    List<Token> trialChain = new ArrayList<>(alternative);
+
+            	    trialChain.addAll(groupTokens.subList(j + 1, groupTokens.size()));
+
+            	    int trialMatch = matchTokens(input, pos, trialChain);
+
+            	    if (trialMatch > bestMatchPosition) {
+            	        bestMatchPosition = trialMatch;
+            	    }
+            	}
+
+            	return bestMatchPosition;
+
             } else if (token.type == Token.TokenType.GROUP) {
                 int result = matchTokens(input, pos, token.groupTokens);
                 if (result == -1) return -1;
