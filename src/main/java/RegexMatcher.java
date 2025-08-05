@@ -73,7 +73,10 @@ public class RegexMatcher {
                         if (matchesRemaining(input, next, j + 1)) return true;
                         pos = next;
                     }
-                    return count == 0;
+                    if (count > 0 && (!anchoredEnd || pos == input.length())) {
+                        return true;
+                    }
+                    return false;
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                     if (matchGroup(input, i, token.groupTokens)) {
                         int next = advanceGroup(input, i, token.groupTokens);
