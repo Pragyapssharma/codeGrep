@@ -70,13 +70,10 @@ public class RegexMatcher {
                     while (matchGroup(input, pos, token.groupTokens)) {
                         int next = advanceGroup(input, pos, token.groupTokens);
                         count++;
-                        if (matchesRemaining(input, next, j + 1)) return true;
                         pos = next;
                     }
-                    if (count > 0 && (!anchoredEnd || pos == input.length())) {
-                        return true;
-                    }
-                    return false;
+                    if (count == 0) return false;
+                    return matchesRemaining(input, pos, j + 1);
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                     if (matchGroup(input, i, token.groupTokens)) {
                         int next = advanceGroup(input, i, token.groupTokens);
