@@ -73,6 +73,9 @@ public class RegexMatcher {
                         pos = next;
                     }
                     if (count == 0) return false;
+                    if (j + 1 >= tokens.size()) {
+                        return !anchoredEnd || (pos == input.length());
+                    }
                     return matchesRemaining(input, pos, j + 1);
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                     if (matchGroup(input, i, token.groupTokens)) {
