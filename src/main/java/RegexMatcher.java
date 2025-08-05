@@ -69,10 +69,10 @@ public class RegexMatcher {
                     while (matchGroup(input, pos, token.groupTokens)) {
                         int next = advanceGroup(input, pos, token.groupTokens);
                         count++;
+                        if (matchesRemaining(input, next, j + 1)) return true;
                         pos = next;
-                        if (matchesRemaining(input, pos, j + 1)) return true;
                     }
-                    return count > 0 && matchesRemaining(input, pos, j + 1);
+                    return false;
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                     if (matchGroup(input, i, token.groupTokens)) {
                         int next = advanceGroup(input, i, token.groupTokens);
