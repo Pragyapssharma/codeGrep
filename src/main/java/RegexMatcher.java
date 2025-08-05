@@ -67,7 +67,7 @@ public class RegexMatcher {
                     int pos = i;
                     int count = 0;
                     System.out.println("Trying ONE_OR_MORE for group at input pos: " + i);
-                    while (matchGroup(input, pos, token.groupTokens)) {
+                    while (pos < input.length() && matchGroup(input, pos, token.groupTokens)) {
                         int next = advanceGroup(input, pos, token.groupTokens);
                         count++;
                         pos = next;
