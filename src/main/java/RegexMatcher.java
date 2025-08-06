@@ -212,6 +212,19 @@ public class RegexMatcher {
                     token = new Token(alternatives);
                 }
                 i = end + 1;
+                
+             // Check for quantifier after group
+                if (i < pattern.length()) {
+                    char next = pattern.charAt(i);
+                    if (next == '+') {
+                        token.quantifier = Token.Quantifier.ONE_OR_MORE;
+                        i++;
+                    } else if (next == '?') {
+                        token.quantifier = Token.Quantifier.ZERO_OR_ONE;
+                        i++;
+                    }
+                }
+                
             } else if (c == '\\' && i + 1 < pattern.length()) {
                 char next = pattern.charAt(i + 1);
                 if (next == 'd') {
