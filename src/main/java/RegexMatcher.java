@@ -151,7 +151,7 @@ public class RegexMatcher {
                         bestMatchPos = matchPos;
                     }
                 }
-                return bestMatchPos;
+                return bestMatchPos != -1 ? bestMatchPos : -1;
 
 
             } else if (token.type == Token.TokenType.GROUP) {
