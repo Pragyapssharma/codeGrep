@@ -172,7 +172,27 @@ public class RegexMatcher {
                 pos++;
                 j++;
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                if (pos < input.length() && token.matches(input.charAt(pos))) pos++;
+                if (token.type == Token.TokenType.GROUP) {
+                    int result = matchTokens(input, pos, token.groupTokens);
+                    if (result != -1) {
+                        pos = result;
+                    }
+                } else if (token.type == Token.TokenType.ALTERNATION) {
+                    boolean matched = false;
+                    for (List<Token> altBranch : token.alternatives) {
+                        int result = matchTokens(input, pos, altBranch);
+                        if (result != -1) {
+                            pos = result;
+                            matched = true;
+                            break;
+                        }
+                    }
+                  
+                } else {
+                    if (pos < input.length() && token.matches(input.charAt(pos))) {
+                        pos++;
+                    }
+                }
                 j++;
             } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
                 int count = 0;
