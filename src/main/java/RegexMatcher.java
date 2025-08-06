@@ -75,9 +75,9 @@ public class RegexMatcher {
                         
                     }
                     if (count == 0) return false;
-                    return (j + 1 >= tokens.size())
-                            ? (!anchoredEnd || pos == input.length())
-                            : matchesRemaining(input, pos, j + 1);
+                    j++;
+                    return matchesRemaining(input, pos, j);
+
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                     if (matchGroup(input, i, token.groupTokens)) {
                         int next = advanceGroup(input, i, token.groupTokens);
