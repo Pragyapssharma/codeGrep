@@ -67,20 +67,21 @@ public class RegexMatcher {
                     int pos = i;
                     int count = 0;
                     System.out.println("Trying ONE_OR_MORE for group at input pos: " + i);
-                    while (pos < input.length() && matchGroup(input, pos, token.groupTokens)) {
+                    while (pos < input.length()) {
                         int next = advanceGroup(input, pos, token.groupTokens);
-                        if (next == pos) break;  // prevents infinite loop if nothing advances
+                        if (next == -1 || next == pos) break;
                         count++;
                         pos = next;
                     }
                     if (count == 0) return false;
                     j++;
                     System.out.println("Final input pos: " + pos + ", anchoredEnd: " + anchoredEnd);
-                    if (anchoredEnd && j >= tokens.size() && pos == input.length()) {
-                        return true;
-                    }
-                    return matchesRemaining(input, pos, j);
 
+                    if (anchoredEnd && j >= tokens.size()) {
+                        return pos == input.length();
+                    }
+
+                    return matchesRemaining(input, pos, j);
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                     if (matchGroup(input, i, token.groupTokens)) {
                         int next = advanceGroup(input, i, token.groupTokens);
@@ -131,6 +132,7 @@ public class RegexMatcher {
     }
 
     private int advanceGroup(String input, int i, List<Token> groupTokens) {
+    	System.out.println("in advanceGroup: " + input + " at input i: " + i + " tokengroup: "+groupTokens);
         return matchTokens(input, i, groupTokens);
     }
 
