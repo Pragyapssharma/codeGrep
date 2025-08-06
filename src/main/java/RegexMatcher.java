@@ -72,10 +72,11 @@ public class RegexMatcher {
                         if (next == pos) break;  // prevents infinite loop if nothing advances
                         count++;
                         pos = next;
-                        
                     }
                     if (count == 0) return false;
                     j++;
+                    System.out.println("Final input pos: " + pos + ", anchoredEnd: " + anchoredEnd);
+                    if (anchoredEnd && j >= tokens.size() && pos != input.length()) return false;
                     return matchesRemaining(input, pos, j);
 
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
