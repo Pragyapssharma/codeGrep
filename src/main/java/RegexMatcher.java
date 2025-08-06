@@ -108,7 +108,9 @@ public class RegexMatcher {
                 }
                 if (count == 0) return false;
                 i = newPos;
-                j++;                
+                j++;
+                return true;
+                
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                 if (i < input.length() && token.matches(input.charAt(i))) {
                     if (matchesRemaining(input, i + 1, j + 1)) return true;
