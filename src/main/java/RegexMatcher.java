@@ -1,7 +1,7 @@
 import java.util.*;
 
 public class RegexMatcher {
-    private List<Token> tokens;
+    private final List<Token> tokens;
     private final boolean anchored;
     private final boolean anchoredEnd;
 
@@ -23,17 +23,51 @@ public class RegexMatcher {
         this.tokens = tokenize(pattern);
     }
 
-    public boolean matches(String input) {
-        if (anchored) {
-            return matchesAt(input, 0);
-        } else {
-            for (int i = 0; i <= input.length(); i++) {
-                if (matchesAt(input, i)) {
-                    return true;
+//    public boolean matches(String input) {
+//        if (anchored) {
+//            return matchesAt(input, 0);
+//        } else {
+//            for (int i = 0; i <= input.length(); i++) {
+//                if (matchesAt(input, i)) {
+//                    return true;
+//                }
+//            }
+//            return false;
+//        }
+//    }
+    
+    private boolean matchesRemaining(String input, int i, int j, List<Token> tokenList) {
+        while (j < tokenList.size()) {
+            Token token = tokenList.get(j);
+
+            System.out.println("Matching token: " + token.type + " at input pos: " + i);
+            System.out.println("Current input: " + (i < input.length() ? input.substring(i) : "EOF"));
+
+            if (token.type == Token.TokenType.ALTERNATION) {
+                for (List<Token> alt : token.alternatives) {
+                    List<Token> combined = new ArrayList<>(alt);
+                    combined.addAll(tokenList.subList(j + 1, tokenList.size()));
+                    if (matchesAlternative(input, i, combined)) {
+                        return true;
+                    }
                 }
+                return false;
             }
-            return false;
+
+            if (i >= input.length() || !token.matches(input.charAt(i))) {
+                return false;
+            }
+            i++;
+            j++;
         }
+        return i == input.length();
+    }
+
+    
+
+    
+    public boolean matches(String input) {
+        return matchesRemaining(input, 0, 0, this.tokens);
     }
 
     private boolean matchesAt(String input, int start) {
@@ -125,13 +159,18 @@ public class RegexMatcher {
         return !anchoredEnd || (i == input.length());
     }
 
+//    private boolean matchesAlternative(String input, int i, List<Token> altTokens) {
+//        List<Token> savedTokens = this.tokens;
+//        this.tokens = altTokens;
+//        boolean result = matchesRemaining(input, i, 0);
+//        this.tokens = savedTokens;
+//        return result;
+//    }
+    
     private boolean matchesAlternative(String input, int i, List<Token> altTokens) {
-        List<Token> savedTokens = this.tokens;
-        this.tokens = altTokens;
-        boolean result = matchesRemaining(input, i, 0);
-        this.tokens = savedTokens;
-        return result;
+        return matchesRemaining(input, i, 0, altTokens);
     }
+
 
     private boolean matchGroup(String input, int i, List<Token> groupTokens) {
         return matchTokens(input, i, groupTokens) != -1;
