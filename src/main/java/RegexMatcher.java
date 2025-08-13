@@ -211,10 +211,45 @@ public class RegexMatcher {
         return matchTokens(input, i, groupTokens) != -1;
     }
 
-    private int advanceGroup(String input, int i, List<Token> groupTokens) {
-    	System.out.println("in advanceGroup: " + input + " at input i: " + i + " tokengroup: "+groupTokens);
-        return matchTokens(input, i, groupTokens);
+    private int advanceGroup(String input, int pos, List<Token> groupTokens) {
+        int i = pos;
+        for (int j = 0; j < groupTokens.size(); j++) {
+            Token token = groupTokens.get(j);
+
+            if (token.type == Token.TokenType.ALTERNATION) {
+                // Try each alternative branch
+                for (List<Token> alt : token.alternatives) {
+                    List<Token> combined = new ArrayList<>(alt);
+                    combined.addAll(groupTokens.subList(j + 1, groupTokens.size()));
+
+                    int newPos = advanceGroup(input, i, combined);
+                    if (newPos != -1) {
+                        return newPos; // success in one branch
+                    }
+                }
+                return -1; // none worked
+            }
+
+            // Handle other token types normally
+            if (token.quantifier == Token.Quantifier.ONE) {
+                if (i >= input.length() || !token.matches(input.charAt(i))) return -1;
+                i++;
+            } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+                int count = 0;
+                while (i < input.length() && token.matches(input.charAt(i))) {
+                    i++;
+                    count++;
+                }
+                if (count == 0) return -1;
+            } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+                if (i < input.length() && token.matches(input.charAt(i))) {
+                    i++;
+                }
+            }
+        }
+        return i;
     }
+
 
     private int matchTokens(String input, int i, List<Token> groupTokens) {
         int j = 0;
