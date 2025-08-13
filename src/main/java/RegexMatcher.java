@@ -137,8 +137,71 @@ public class RegexMatcher {
     private boolean matchesRemainingWithTokens(String input, int i, int j, List<Token> tokenList) {
         while (j < tokenList.size()) {
             Token token = tokenList.get(j);
-            // copy your matchesRemaining() logic here,
-            // replacing `tokens` with `tokenList`
+
+            System.out.println("Matching token (alt branch): " + token.type + " at input pos: " + i);
+            System.out.println("Current input: " + (i < input.length() ? input.substring(i) : "EOF"));
+
+            if (token.type == Token.TokenType.ALTERNATION) {
+                for (List<Token> alt : token.alternatives) {
+                    List<Token> combined = new ArrayList<>(alt);
+                    combined.addAll(tokenList.subList(j + 1, tokenList.size()));
+                    if (matchesRemainingWithTokens(input, i, 0, combined)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            if (token.type == Token.TokenType.GROUP) {
+                if (token.quantifier == Token.Quantifier.ONE) {
+                    if (!matchGroup(input, i, token.groupTokens)) return false;
+                    i = advanceGroup(input, i, token.groupTokens);
+                    j++;
+                } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+                    int pos = i;
+                    int count = 0;
+                    while (true) {
+                        int next = advanceGroup(input, pos, token.groupTokens);
+                        if (next == -1 || next == pos) break;
+                        count++;
+                        pos = next;
+                    }
+                    if (count == 0) return false;
+                    j++;
+                    if (anchoredEnd && j >= tokenList.size()) {
+                        return pos == input.length();
+                    }
+                    return matchesRemainingWithTokens(input, pos, j, tokenList);
+                } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+                    if (matchGroup(input, i, token.groupTokens)) {
+                        int next = advanceGroup(input, i, token.groupTokens);
+                        if (matchesRemainingWithTokens(input, next, j + 1, tokenList)) return true;
+                    }
+                    return matchesRemainingWithTokens(input, i, j + 1, tokenList);
+                }
+                continue;
+            }
+
+            if (token.quantifier == Token.Quantifier.ONE) {
+                if (i >= input.length() || !token.matches(input.charAt(i))) return false;
+                i++;
+                j++;
+            } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+                int count = 0;
+                int newPos = i;
+                while (newPos < input.length() && token.matches(input.charAt(newPos))) {
+                    newPos++;
+                    count++;
+                }
+                if (count == 0) return false;
+                i = newPos;
+                j++;
+            } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+                if (i < input.length() && token.matches(input.charAt(i))) {
+                    if (matchesRemainingWithTokens(input, i + 1, j + 1, tokenList)) return true;
+                }
+                return matchesRemainingWithTokens(input, i, j + 1, tokenList);
+            }
         }
         return !anchoredEnd || (i == input.length());
     }
