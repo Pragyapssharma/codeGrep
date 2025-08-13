@@ -212,94 +212,94 @@ public class RegexMatcher {
         return pos;
     }
 
-    private List<Token> tokenize(String pattern) {
-        List<Token> tokens = new ArrayList<>();
-        for (int i = 0; i < pattern.length();) {
-            char c = pattern.charAt(i);
-            Token token;
-
-            if (c == '(') {
-                int end = findClosingParen(pattern, i);
-                String group = pattern.substring(i + 1, end);
-                List<List<Token>> alternatives = new ArrayList<>();
-                int lastSplit = 0;
-                int depth = 0;
-
-                for (int j = 0; j <= group.length(); j++) {
-                    if (j == group.length() || (group.charAt(j) == '|' && depth == 0)) {
-                        String part = group.substring(lastSplit, j);
-                        alternatives.add(tokenize(part));
-                        lastSplit = j + 1;
-                    } else if (group.charAt(j) == '(') {
-                        depth++;
-                    } else if (group.charAt(j) == ')') {
-                        depth--;
-                    }
-                }
-
-                if (alternatives.size() == 1) {
-                    token = new Token(alternatives.get(0), Token.TokenType.GROUP);
-                } else {
-                    token = new Token(alternatives);
-                }
-                i = end + 1;
-                
-             // Check for quantifier after group
-                if (i < pattern.length()) {
-                    char next = pattern.charAt(i);
-                    if (next == '+') {
-                        token.quantifier = Token.Quantifier.ONE_OR_MORE;
-                        i++;
-                    } else if (next == '?') {
-                        token.quantifier = Token.Quantifier.ZERO_OR_ONE;
-                        i++;
-                    }
-                }
-                
-            } else if (c == '\\' && i + 1 < pattern.length()) {
-                char next = pattern.charAt(i + 1);
-                if (next == 'd') {
-                    token = new Token(Token.TokenType.DIGIT, "");
-                } else if (next == 'w') {
-                    token = new Token(Token.TokenType.WORD, "");
-                } else {
-                    token = new Token(Token.TokenType.CHAR, String.valueOf(next));
-                }
-                i += 2;
-            } else if (c == '[') {
-                int end = pattern.indexOf(']', i);
-                if (end == -1) throw new RuntimeException("Unclosed [");
-                String group = pattern.substring(i + 1, end);
-                if (group.startsWith("^")) {
-                    token = new Token(Token.TokenType.NEGATIVE_GROUP, group.substring(1));
-                } else {
-                    token = new Token(Token.TokenType.POSITIVE_GROUP, group);
-                }
-                i = end + 1;
-            } else if (c == '.') {
-                token = new Token(Token.TokenType.DOT, "");
-                i++;
-            } else {
-                token = new Token(Token.TokenType.CHAR, String.valueOf(c));
-                i++;
-            }
-
-            if (i < pattern.length()) {
-                char next = pattern.charAt(i);
-                if (next == '+') {
-                    token.quantifier = Token.Quantifier.ONE_OR_MORE;
-                    i++;
-                } else if (next == '?') {
-                    token.quantifier = Token.Quantifier.ZERO_OR_ONE;
-                    i++;
-                }
-            }
-
-            tokens.add(token);
-        }
-
-        return tokens;
-    }
+//    private List<Token> tokenize(String pattern) {
+//        List<Token> tokens = new ArrayList<>();
+//        for (int i = 0; i < pattern.length();) {
+//            char c = pattern.charAt(i);
+//            Token token;
+//
+//            if (c == '(') {
+//                int end = findClosingParen(pattern, i);
+//                String group = pattern.substring(i + 1, end);
+//                List<List<Token>> alternatives = new ArrayList<>();
+//                int lastSplit = 0;
+//                int depth = 0;
+//
+//                for (int j = 0; j <= group.length(); j++) {
+//                    if (j == group.length() || (group.charAt(j) == '|' && depth == 0)) {
+//                        String part = group.substring(lastSplit, j);
+//                        alternatives.add(tokenize(part));
+//                        lastSplit = j + 1;
+//                    } else if (group.charAt(j) == '(') {
+//                        depth++;
+//                    } else if (group.charAt(j) == ')') {
+//                        depth--;
+//                    }
+//                }
+//
+//                if (alternatives.size() == 1) {
+//                    token = new Token(alternatives.get(0), Token.TokenType.GROUP);
+//                } else {
+//                    token = new Token(alternatives);
+//                }
+//                i = end + 1;
+//                
+//             // Check for quantifier after group
+//                if (i < pattern.length()) {
+//                    char next = pattern.charAt(i);
+//                    if (next == '+') {
+//                        token.quantifier = Token.Quantifier.ONE_OR_MORE;
+//                        i++;
+//                    } else if (next == '?') {
+//                        token.quantifier = Token.Quantifier.ZERO_OR_ONE;
+//                        i++;
+//                    }
+//                }
+//                
+//            } else if (c == '\\' && i + 1 < pattern.length()) {
+//                char next = pattern.charAt(i + 1);
+//                if (next == 'd') {
+//                    token = new Token(Token.TokenType.DIGIT, "");
+//                } else if (next == 'w') {
+//                    token = new Token(Token.TokenType.WORD, "");
+//                } else {
+//                    token = new Token(Token.TokenType.CHAR, String.valueOf(next));
+//                }
+//                i += 2;
+//            } else if (c == '[') {
+//                int end = pattern.indexOf(']', i);
+//                if (end == -1) throw new RuntimeException("Unclosed [");
+//                String group = pattern.substring(i + 1, end);
+//                if (group.startsWith("^")) {
+//                    token = new Token(Token.TokenType.NEGATIVE_GROUP, group.substring(1));
+//                } else {
+//                    token = new Token(Token.TokenType.POSITIVE_GROUP, group);
+//                }
+//                i = end + 1;
+//            } else if (c == '.') {
+//                token = new Token(Token.TokenType.DOT, "");
+//                i++;
+//            } else {
+//                token = new Token(Token.TokenType.CHAR, String.valueOf(c));
+//                i++;
+//            }
+//
+//            if (i < pattern.length()) {
+//                char next = pattern.charAt(i);
+//                if (next == '+') {
+//                    token.quantifier = Token.Quantifier.ONE_OR_MORE;
+//                    i++;
+//                } else if (next == '?') {
+//                    token.quantifier = Token.Quantifier.ZERO_OR_ONE;
+//                    i++;
+//                }
+//            }
+//
+//            tokens.add(token);
+//        }
+//
+//        return tokens;
+//    }
 
     private int findClosingParen(String pattern, int start) {
         int depth = 0;
@@ -315,4 +315,125 @@ public class RegexMatcher {
         }
         throw new RuntimeException("Unclosed parenthesis in pattern");
     }
+    
+    private List<Token> tokenize(String pattern) {
+        // Step 1: Check for top-level alternation
+        int depth = 0;
+        List<List<Token>> alternatives = new ArrayList<>();
+        int lastSplit = 0;
+
+        for (int i = 0; i <= pattern.length(); i++) {
+            if (i == pattern.length() || (pattern.charAt(i) == '|' && depth == 0)) {
+                String part = pattern.substring(lastSplit, i);
+                alternatives.add(tokenizePart(part)); // tokenizePart handles normal tokens
+                lastSplit = i + 1;
+            } else if (pattern.charAt(i) == '(') {
+                depth++;
+            } else if (pattern.charAt(i) == ')') {
+                depth--;
+            }
+        }
+
+        if (alternatives.size() > 1) {
+            // We found a top-level alternation
+            return Collections.singletonList(new Token(alternatives));
+        }
+
+        // Step 2: No top-level alternation, just tokenize normally
+        return tokenizePart(pattern);
+    }
+
+    private List<Token> tokenizePart(String pattern) {
+        List<Token> tokens = new ArrayList<>();
+        for (int i = 0; i < pattern.length();) {
+            char c = pattern.charAt(i);
+            Token token;
+
+            if (c == '(') {
+                int end = findClosingParen(pattern, i);
+                String group = pattern.substring(i + 1, end);
+
+                // Check for alternation inside group
+                List<List<Token>> alternatives = new ArrayList<>();
+                int lastSplit = 0;
+                int depth = 0;
+                for (int j = 0; j <= group.length(); j++) {
+                    if (j == group.length() || (group.charAt(j) == '|' && depth == 0)) {
+                        alternatives.add(tokenizePart(group.substring(lastSplit, j)));
+                        lastSplit = j + 1;
+                    } else if (group.charAt(j) == '(') {
+                        depth++;
+                    } else if (group.charAt(j) == ')') {
+                        depth--;
+                    }
+                }
+
+                if (alternatives.size() == 1) {
+                    token = new Token(alternatives.get(0), Token.TokenType.GROUP);
+                } else {
+                    token = new Token(alternatives);
+                }
+                i = end + 1;
+
+                // Quantifier after group
+                if (i < pattern.length()) {
+                    char next = pattern.charAt(i);
+                    if (next == '+') {
+                        token.quantifier = Token.Quantifier.ONE_OR_MORE;
+                        i++;
+                    } else if (next == '?') {
+                        token.quantifier = Token.Quantifier.ZERO_OR_ONE;
+                        i++;
+                    }
+                }
+
+            } else if (c == '\\' && i + 1 < pattern.length()) {
+                char next = pattern.charAt(i + 1);
+                if (next == 'd') {
+                    token = new Token(Token.TokenType.DIGIT, "");
+                } else if (next == 'w') {
+                    token = new Token(Token.TokenType.WORD, "");
+                } else {
+                    token = new Token(Token.TokenType.CHAR, String.valueOf(next));
+                }
+                i += 2;
+
+            } else if (c == '[') {
+                int end = pattern.indexOf(']', i);
+                if (end == -1) throw new RuntimeException("Unclosed [");
+                String groupStr = pattern.substring(i + 1, end);
+                if (groupStr.startsWith("^")) {
+                    token = new Token(Token.TokenType.NEGATIVE_GROUP, groupStr.substring(1));
+                } else {
+                    token = new Token(Token.TokenType.POSITIVE_GROUP, groupStr);
+                }
+                i = end + 1;
+
+            } else if (c == '.') {
+                token = new Token(Token.TokenType.DOT, "");
+                i++;
+
+            } else {
+                token = new Token(Token.TokenType.CHAR, String.valueOf(c));
+                i++;
+            }
+
+            // Quantifiers
+            if (i < pattern.length()) {
+                char next = pattern.charAt(i);
+                if (next == '+') {
+                    token.quantifier = Token.Quantifier.ONE_OR_MORE;
+                    i++;
+                } else if (next == '?') {
+                    token.quantifier = Token.Quantifier.ZERO_OR_ONE;
+                    i++;
+                }
+            }
+
+            tokens.add(token);
+        }
+        return tokens;
+    }
+
+    
 }
