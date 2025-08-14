@@ -73,19 +73,11 @@ public class RegexMatcher {
                         if (next == -1 || next == pos) break;
                         count++;
                         pos = next;
-                        if (anchoredEnd && j + 1 == tokens.size() && pos == input.length()) {
-                            return true;
-                        }
                     }
                     if (count == 0) return false;
                     j++;
-                    System.out.println("Final input pos: " + pos + ", anchoredEnd: " + anchoredEnd);
-
-                    if (anchoredEnd && j >= tokens.size()) {
-                        return pos == input.length();
-                    }
-
                     return matchesRemaining(input, pos, j);
+
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                     if (matchGroup(input, i, token.groupTokens)) {
                         int next = advanceGroup(input, i, token.groupTokens);
