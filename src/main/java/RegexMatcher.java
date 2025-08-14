@@ -93,19 +93,45 @@ public class RegexMatcher {
                 i++;
                 j++;
             } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                int count = 0;
-                int newPos = i;
-                while (true) {
-                    int nextPos = matchTokens(input, newPos, token.groupTokens);
-                    if (nextPos == -1) break;
-                    newPos = nextPos;
-                    count++;
+                if (token.type == Token.TokenType.GROUP) {
+                    // existing group repetition logic...
+                    int pos2 = i;
+                    int count = 0;
+                    while (true) {
+                        int next = advanceGroup(input, pos2, token.groupTokens);
+                        if (next == -1 || next == pos2) break;
+                        count++;
+                        pos2 = next;
+                        if (anchoredEnd && j + 1 == tokens.size() && pos2 == input.length()) {
+                            return true;
+                        }
+                    }
+                    if (count == 0) return false;
+                    j++;
+                    if (anchoredEnd && j >= tokens.size()) {
+                        return pos2 == input.length();
+                    }
+                    return matchesRemaining(input, pos2, j);
+
+                } else {
+                    // plain char-like token repetition
+                    int pos2 = i;
+                    int count = 0;
+                    while (pos2 < input.length() && token.matches(input.charAt(pos2))) {
+                        pos2++;
+                        count++;
+                        if (anchoredEnd && j + 1 == tokens.size() && pos2 == input.length()) {
+                            return true;
+                        }
+                    }
+                    if (count == 0) return false;
+                    j++;
+                    if (anchoredEnd && j >= tokens.size()) {
+                        return pos2 == input.length();
+                    }
+                    return matchesRemaining(input, pos2, j);
                 }
-                if (count == 0) return false;
-                i = newPos;
-                j++;
-                return true;
-                
+            
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                 if (i < input.length() && token.matches(input.charAt(i))) {
                     if (matchesRemaining(input, i + 1, j + 1)) return true;
