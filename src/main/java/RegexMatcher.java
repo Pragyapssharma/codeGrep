@@ -114,22 +114,26 @@ public class RegexMatcher {
                     return matchesRemaining(input, pos2, j);
 
                 } else {
-                    // plain char-like token repetition
-                    int pos2 = i;
-                    int count = 0;
-                    while (pos2 < input.length() && token.matches(input.charAt(pos2))) {
-                        pos2++;
-                        count++;
-                        if (anchoredEnd && j + 1 == tokens.size() && pos2 == input.length()) {
+                    // Non-group repetition (CHAR, DOT, etc.)
+                    int maxPos = i;
+                    while (maxPos < input.length() && token.matches(input.charAt(maxPos))) {
+                        maxPos++;
+                    }
+                    // Try greedy -> backtrack
+                    for (int pos2 = maxPos; pos2 >= i + 1; pos2--) {
+                        if (j + 1 == tokens.size()) {
+                            // no more tokens, must consume all
+                            if (anchoredEnd) {
+                                if (pos2 == input.length()) return true;
+                            } else {
+                                return true;
+                            }
+                        } else if (matchesRemaining(input, pos2, j + 1)) {
                             return true;
                         }
                     }
-                    if (count == 0) return false;
-                    j++;
-                    if (anchoredEnd && j >= tokens.size()) {
-                        return pos2 == input.length();
-                    }
-                    return matchesRemaining(input, pos2, j);
+                    return false;
+
                 }
             
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
