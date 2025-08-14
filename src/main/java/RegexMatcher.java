@@ -173,16 +173,25 @@ public class RegexMatcher {
                         pos = result;
                     }
                 } else if (token.type == Token.TokenType.ALTERNATION) {
-                    boolean matched = false;
+                    boolean optional = (token.quantifier == Token.Quantifier.ZERO_OR_ONE);
+                    int bestPos = -1;
                     for (List<Token> altBranch : token.alternatives) {
-                        int result = matchTokens(input, pos, altBranch);
-                        if (result != -1) {
-                            pos = result;
-                            matched = true;
-                            break;
+                        List<Token> branchSeq = new ArrayList<>(altBranch);
+                        branchSeq.addAll(groupTokens.subList(j + 1, groupTokens.size()));
+                        int matchPos = matchTokens(input, pos, branchSeq);
+                        if (matchPos > bestPos) {
+                            bestPos = matchPos;
                         }
                     }
-                  
+                    if (bestPos != -1) {
+                        return bestPos;
+                    } else if (optional) {
+                        // Skip this alternation entirely and try remainder
+                        j++;
+                        continue; // don't advance pos
+                    } else {
+                        return -1;
+                    }
                 } else {
                     if (pos < input.length() && token.matches(input.charAt(pos))) {
                         pos++;
