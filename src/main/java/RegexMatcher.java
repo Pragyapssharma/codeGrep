@@ -140,64 +140,60 @@ public class RegexMatcher {
         while (j < groupTokens.size()) {
             Token token = groupTokens.get(j);
 
-            System.out.println("Matching token in group: " + token.type + " at input pos: " + pos);
-            System.out.println("Current input: " + (pos < input.length() ? input.substring(pos) : "EOF"));
+            // Prefer stderr for debug to avoid interfering with stdout verdicts
+            // System.err.println("Matching token in group: " + token.type + " at input pos: " + pos);
+            // System.err.println("Current input: " + (pos < input.length() ? input.substring(pos) : "EOF"));
 
             if (token.type == Token.TokenType.ALTERNATION) {
-                int bestMatchPos = -1;
-                for (List<Token> altBranch : token.alternatives) {
-                    List<Token> trialChain = new ArrayList<>(altBranch);
-                    trialChain.addAll(groupTokens.subList(j + 1, groupTokens.size()));
+                boolean optional = (token.quantifier == Token.Quantifier.ZERO_OR_ONE);
+                int bestPos = -1;
 
-                    int matchPos = matchTokens(input, pos, trialChain);
-                    if (matchPos > bestMatchPos) {
-                        bestMatchPos = matchPos;
+                for (List<Token> altBranch : token.alternatives) {
+                    // Try: branch + remainder of this group
+                    List<Token> branchSeq = new ArrayList<>(altBranch);
+                    branchSeq.addAll(groupTokens.subList(j + 1, groupTokens.size()));
+                    int matchPos = matchTokens(input, pos, branchSeq);
+                    if (matchPos > bestPos) {
+                        bestPos = matchPos;
                     }
                 }
-                return bestMatchPos != -1 ? bestMatchPos : -1;
 
+                if (bestPos != -1) {
+                    return bestPos; // One branch matched through to the end of the group
+                } else if (optional) {
+                    // Skip the alternation entirely (zero occurrences) and continue
+                    j++;
+                    continue;
+                } else {
+                    return -1;
+                }
 
             } else if (token.type == Token.TokenType.GROUP) {
+                // Consume group once; ZERO_OR_ONE is handled below, ONE_OR_MORE for groups is handled in matchesRemaining
                 int result = matchTokens(input, pos, token.groupTokens);
                 if (result == -1) return -1;
                 pos = result;
                 j++;
+
             } else if (token.quantifier == Token.Quantifier.ONE) {
                 if (pos >= input.length() || !token.matches(input.charAt(pos))) return -1;
                 pos++;
                 j++;
+
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                 if (token.type == Token.TokenType.GROUP) {
                     int result = matchTokens(input, pos, token.groupTokens);
                     if (result != -1) {
                         pos = result;
                     }
-                } else if (token.type == Token.TokenType.ALTERNATION) {
-                    boolean optional = (token.quantifier == Token.Quantifier.ZERO_OR_ONE);
-                    int bestPos = -1;
-                    for (List<Token> altBranch : token.alternatives) {
-                        List<Token> branchSeq = new ArrayList<>(altBranch);
-                        branchSeq.addAll(groupTokens.subList(j + 1, groupTokens.size()));
-                        int matchPos = matchTokens(input, pos, branchSeq);
-                        if (matchPos > bestPos) {
-                            bestPos = matchPos;
-                        }
-                    }
-                    if (bestPos != -1) {
-                        return bestPos;
-                    } else if (optional) {
-                        // Skip this alternation entirely and try remainder
-                        j++;
-                        continue; // don't advance pos
-                    } else {
-                        return -1;
-                    }
+                    j++;
                 } else {
                     if (pos < input.length() && token.matches(input.charAt(pos))) {
                         pos++;
                     }
+                    j++;
                 }
-                j++;
+
             } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
                 int count = 0;
                 while (pos < input.length() && token.matches(input.charAt(pos))) {
@@ -206,6 +202,7 @@ public class RegexMatcher {
                 }
                 if (count == 0) return -1;
                 j++;
+
             } else {
                 return -1;
             }
@@ -244,19 +241,7 @@ public class RegexMatcher {
                     token = new Token(alternatives);
                 }
                 i = end + 1;
-                
-             // Check for quantifier after group
-                if (i < pattern.length()) {
-                    char next = pattern.charAt(i);
-                    if (next == '+') {
-                        token.quantifier = Token.Quantifier.ONE_OR_MORE;
-                        i++;
-                    } else if (next == '?') {
-                        token.quantifier = Token.Quantifier.ZERO_OR_ONE;
-                        i++;
-                    }
-                }
-                
+
             } else if (c == '\\' && i + 1 < pattern.length()) {
                 char next = pattern.charAt(i + 1);
                 if (next == 'd') {
@@ -267,6 +252,7 @@ public class RegexMatcher {
                     token = new Token(Token.TokenType.CHAR, String.valueOf(next));
                 }
                 i += 2;
+
             } else if (c == '[') {
                 int end = pattern.indexOf(']', i);
                 if (end == -1) throw new RuntimeException("Unclosed [");
@@ -277,14 +263,17 @@ public class RegexMatcher {
                     token = new Token(Token.TokenType.POSITIVE_GROUP, group);
                 }
                 i = end + 1;
+
             } else if (c == '.') {
                 token = new Token(Token.TokenType.DOT, "");
                 i++;
+
             } else {
                 token = new Token(Token.TokenType.CHAR, String.valueOf(c));
                 i++;
             }
 
+            // Single, unified quantifier handling for all tokens (including groups/alternations)
             if (i < pattern.length()) {
                 char next = pattern.charAt(i);
                 if (next == '+') {
