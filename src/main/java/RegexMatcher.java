@@ -345,6 +345,7 @@ public class RegexMatcher {
                 if (np == -1) return -1;
                 pos = np;
                 j++;
+                continue;
 
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
             	Captures takeCaps = caps.copy();
