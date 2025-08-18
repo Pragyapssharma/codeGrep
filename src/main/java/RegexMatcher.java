@@ -47,24 +47,92 @@ public class RegexMatcher {
         while (j < tokens.size()) {
             Token token = tokens.get(j);
 
-            // Move debug to stderr to avoid stdout interference
-            // System.err.println("Matching token: " + token.type + " at input pos: " + i);
-            // System.err.println("Current input: " + (i < input.length() ? input.substring(i) : "EOF"));
-
+            // Handle an alternation token (i.e., (...) with branches)
             if (token.type == Token.TokenType.ALTERNATION) {
-                // Keep previous strategy: fold branch + remainder into a single sequence,
-                // but preserve captures by threading a copy through.
-                for (List<Token> alt : token.alternatives) {
-                    List<Token> combined = new ArrayList<>(alt);
-                    combined.addAll(tokens.subList(j + 1, tokens.size()));
-                    Captures temp = caps.copy();
-                    if (matchesAlternative(input, i, combined, temp)) {
+                if (token.quantifier == Token.Quantifier.ONE) {
+                    for (List<Token> alt : token.alternatives) {
+                        Captures temp = caps.copy();
+                        int next = matchTokens(input, i, alt, temp);
+                        if (next != -1) {
+                            if (token.capturing) {
+                                temp.start = i;
+                                temp.end = next;
+                            }
+                            if (matchesRemaining(input, next, j + 1, temp)) {
+                                caps.start = temp.start;
+                                caps.end = temp.end;
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+                    // try taking one
+                    for (List<Token> alt : token.alternatives) {
+                        Captures temp = caps.copy();
+                        int next = matchTokens(input, i, alt, temp);
+                        if (next != -1) {
+                            if (token.capturing) {
+                                temp.start = i;
+                                temp.end = next;
+                            }
+                            if (matchesRemaining(input, next, j + 1, temp)) {
+                                caps.start = temp.start;
+                                caps.end = temp.end;
+                                return true;
+                            }
+                        }
+                    }
+                    // or skip
+                    return matchesRemaining(input, i, j + 1, caps);
+                } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+                    // Greedily repeat alternation, then backtrack
+                    int pos = i;
+                    List<Integer> posHistory = new ArrayList<>();
+                    List<Captures> capHistory = new ArrayList<>();
+                    while (true) {
+                        int bestNext = -1;
+                        Captures bestCaps = null;
+                        for (List<Token> alt : token.alternatives) {
+                            Captures temp = caps.copy();
+                            int next = matchTokens(input, pos, alt, temp);
+                            if (next != -1 && next > pos) {
+                                if (token.capturing) {
+                                    temp.start = pos;
+                                    temp.end = next;
+                                }
+                                if (next > bestNext) {
+                                    bestNext = next;
+                                    bestCaps = temp;
+                                }
+                            }
+                        }
+                        if (bestNext == -1) break;
+                        posHistory.add(bestNext);
+                        capHistory.add(bestCaps);
+                        pos = bestNext;
+                        // update running capture to the latest repetition
+                        caps.start = bestCaps.start;
+                        caps.end = bestCaps.end;
+                    }
+
+                    if (posHistory.isEmpty()) return false;
+                    j++;
+                    // Backtrack over repetition count
+                    for (int idx = posHistory.size() - 1; idx >= 0; idx--) {
+                        int p = posHistory.get(idx);
+                        Captures temp = capHistory.get(idx);
+                        Captures saved = caps.copy();
                         caps.start = temp.start;
                         caps.end = temp.end;
-                        return true;
+                        if (matchesRemaining(input, p, j, caps)) {
+                            return true;
+                        }
+                        caps.start = saved.start;
+                        caps.end = saved.end;
                     }
+                    return false;
                 }
-                return false;
             }
 
             if (token.type == Token.TokenType.GROUP) {
@@ -182,16 +250,7 @@ public class RegexMatcher {
         return !anchoredEnd || (i == input.length());
     }
 
-    private boolean matchesAlternative(String input, int i, List<Token> altTokens, Captures caps) {
-        List<Token> savedTokens = this.tokens;
-        this.tokens = altTokens;
-        boolean result = matchesRemaining(input, i, 0, caps);
-        this.tokens = savedTokens;
-        return result;
-    }
-
     private int matchGroupOnce(String input, int i, Token groupToken, Captures caps) {
-        // Work on a copy to allow backtracking if needed
         Captures work = caps.copy();
         int res = matchTokens(input, i, groupToken.groupTokens, work);
         if (res == -1) return -1;
@@ -199,7 +258,6 @@ public class RegexMatcher {
             work.start = i;
             work.end = res;
         }
-        // commit
         caps.start = work.start;
         caps.end = work.end;
         return res;
@@ -214,7 +272,6 @@ public class RegexMatcher {
     }
 
     private int matchTokens(String input, int i, List<Token> groupTokens, Captures caps) {
-        // Operate on a working copy; commit back only on success
         Captures work = caps.copy();
 
         int j = 0;
@@ -223,37 +280,110 @@ public class RegexMatcher {
             Token token = groupTokens.get(j);
 
             if (token.type == Token.TokenType.ALTERNATION) {
-                boolean optional = (token.quantifier == Token.Quantifier.ZERO_OR_ONE);
-                int bestPos = -1;
-                Captures bestCaps = null;
+                // Remainder of the group after this alternation
+                List<Token> remainder = groupTokens.subList(j + 1, groupTokens.size());
 
-                for (List<Token> altBranch : token.alternatives) {
-                    // Try: branch + remainder of this group
-                    List<Token> branchSeq = new ArrayList<>(altBranch);
-                    branchSeq.addAll(groupTokens.subList(j + 1, groupTokens.size()));
-                    Captures branchCaps = work.copy();
-                    int matchPos = matchTokens(input, pos, branchSeq, branchCaps);
-                    if (matchPos > bestPos) {
-                        bestPos = matchPos;
-                        bestCaps = branchCaps;
+                if (token.quantifier == Token.Quantifier.ONE) {
+                    for (List<Token> altBranch : token.alternatives) {
+                        Captures branchCaps = work.copy();
+                        int mid = matchTokens(input, pos, altBranch, branchCaps);
+                        if (mid == -1) continue;
+
+                        if (token.capturing) {
+                            branchCaps.start = pos;
+                            branchCaps.end = mid;
+                        }
+
+                        int endPos = matchTokens(input, mid, remainder, branchCaps);
+                        if (endPos != -1) {
+                            work.start = branchCaps.start;
+                            work.end = branchCaps.end;
+                            caps.start = work.start;
+                            caps.end = work.end;
+                            return endPos;
+                        }
                     }
-                }
+                    return -1;
+                } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+                    // Try taking the alternation once, then the remainder
+                    for (List<Token> altBranch : token.alternatives) {
+                        Captures branchCaps = work.copy();
+                        int mid = matchTokens(input, pos, altBranch, branchCaps);
+                        if (mid == -1) continue;
 
-                if (bestPos != -1) {
-                    work.start = bestCaps.start;
-                    work.end = bestCaps.end;
-                    // Entire remainder handled by the recursive call; return immediately
-                    return bestPos;
-                } else if (optional) {
-                    // Skip the alternation entirely (zero occurrences) and continue
+                        if (token.capturing) {
+                            branchCaps.start = pos;
+                            branchCaps.end = mid;
+                        }
+
+                        int endPos = matchTokens(input, mid, remainder, branchCaps);
+                        if (endPos != -1) {
+                            work.start = branchCaps.start;
+                            work.end = branchCaps.end;
+                            caps.start = work.start;
+                            caps.end = work.end;
+                            return endPos;
+                        }
+                    }
+                    // Or skip this alternation and continue with the remainder directly
                     j++;
                     continue;
-                } else {
+                } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+                    // Consume 1+ repetitions, then try remainder with backoff
+                    List<Integer> posHistory = new ArrayList<>();
+                    List<Captures> capHistory = new ArrayList<>();
+                    int cur = pos;
+
+                    // First repetition must match
+                    boolean firstMatched = false;
+                    while (true) {
+                        int bestNext = -1;
+                        Captures bestCaps = null;
+                        for (List<Token> altBranch : token.alternatives) {
+                            Captures branchCaps = work.copy();
+                            int mid = matchTokens(input, cur, altBranch, branchCaps);
+                            if (mid != -1 && mid > cur) {
+                                if (token.capturing) {
+                                    branchCaps.start = cur;
+                                    branchCaps.end = mid;
+                                }
+                                if (mid > bestNext) {
+                                    bestNext = mid;
+                                    bestCaps = branchCaps;
+                                }
+                            }
+                        }
+                        if (bestNext == -1) break;
+                        firstMatched = true;
+                        posHistory.add(bestNext);
+                        capHistory.add(bestCaps);
+                        cur = bestNext;
+                        work.start = bestCaps.start;
+                        work.end = bestCaps.end;
+                    }
+
+                    if (!firstMatched) return -1;
+
+                    // Try the remainder after k repetitions, backing off k
+                    for (int idx = posHistory.size() - 1; idx >= 0; idx--) {
+                        int after = posHistory.get(idx);
+                        Captures ccap = capHistory.get(idx);
+                        Captures saved = work.copy();
+                        work.start = ccap.start;
+                        work.end = ccap.end;
+
+                        int endPos = matchTokens(input, after, remainder, work);
+                        if (endPos != -1) {
+                            caps.start = work.start;
+                            caps.end = work.end;
+                            return endPos;
+                        }
+                        work.start = saved.start;
+                        work.end = saved.end;
+                    }
                     return -1;
                 }
-
             } else if (token.type == Token.TokenType.GROUP) {
-                // Consume group once; ZERO_OR_ONE is handled below, ONE_OR_MORE for groups is not used here
                 int result = matchGroupOnce(input, pos, token, work);
                 if (result == -1) return -1;
                 pos = result;
@@ -288,7 +418,6 @@ public class RegexMatcher {
             }
         }
 
-        // Commit the capture state on success
         caps.start = work.start;
         caps.end = work.end;
         return pos;
@@ -325,6 +454,7 @@ public class RegexMatcher {
                 } else {
                     token = new Token(alternatives);
                 }
+                // mark the very first group (simple or alternation) as capturing
                 if (!firstCaptureAssigned) {
                     token.capturing = true;
                     token.groupIndex = 1;
@@ -341,7 +471,6 @@ public class RegexMatcher {
                     token = new Token(Token.TokenType.WORD, "");
                     i += 2;
                 } else if (Character.isDigit(next)) {
-                    // Backreference support for \1 only in this stage
                     int refNum = Character.getNumericValue(next);
                     if (refNum == 1) {
                         token = new Token(refNum);
@@ -406,5 +535,4 @@ public class RegexMatcher {
         }
         throw new RuntimeException("Unclosed parenthesis in pattern");
     }
-    
 }
