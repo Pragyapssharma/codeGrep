@@ -322,15 +322,8 @@ public class RegexMatcher {
 
                 if (alternatives.size() == 1) {
                     token = new Token(alternatives.get(0), Token.TokenType.GROUP);
-                    // Mark only the first simple group as capturing
-                    if (!firstCaptureAssigned) {
-                        token.capturing = true;
-                        token.groupIndex = 1;
-                        firstCaptureAssigned = true;
-                    }
                 } else {
                     token = new Token(alternatives);
-                    // Alternation groups not marked capturing in this stage
                 }
                 if (!firstCaptureAssigned) {
                     token.capturing = true;
