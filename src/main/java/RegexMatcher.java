@@ -332,6 +332,11 @@ public class RegexMatcher {
                     token = new Token(alternatives);
                     // Alternation groups not marked capturing in this stage
                 }
+                if (!firstCaptureAssigned) {
+                    token.capturing = true;
+                    token.groupIndex = 1;
+                    firstCaptureAssigned = true;
+                }
                 i = end + 1;
 
             } else if (c == '\\' && i + 1 < pattern.length()) {
