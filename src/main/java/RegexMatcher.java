@@ -1,39 +1,33 @@
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class RegexMatcher {
-    private List<Token> tokens;
-    private final boolean anchored;
+    private final List<Token> tokens;
+    private final boolean anchoredStart;
     private final boolean anchoredEnd;
-
-    // Track whether we've already marked the first capturing group
-    private boolean firstCaptureAssigned = false;
+    private int nextGroupIndex = 1;
 
     public RegexMatcher(String pattern) {
+        boolean aStart = false, aEnd = false;
         if (pattern.startsWith("^")) {
-            this.anchored = true;
+            aStart = true;
             pattern = pattern.substring(1);
-        } else {
-            this.anchored = false;
         }
-
         if (pattern.endsWith("$")) {
-            this.anchoredEnd = true;
+            aEnd = true;
             pattern = pattern.substring(0, pattern.length() - 1);
-        } else {
-            this.anchoredEnd = false;
         }
-
+        this.anchoredStart = aStart;
+        this.anchoredEnd = aEnd;
         this.tokens = tokenize(pattern);
     }
 
     public boolean matches(String input) {
-        if (anchored) {
+        if (anchoredStart) {
             return matchesAt(input, 0);
         } else {
             for (int i = 0; i <= input.length(); i++) {
-                if (matchesAt(input, i)) {
-                    return true;
-                }
+                if (matchesAt(input, i)) return true;
             }
             return false;
         }
@@ -47,49 +41,43 @@ public class RegexMatcher {
         while (j < tokens.size()) {
             Token token = tokens.get(j);
 
-            // Handle an alternation token (i.e., (...) with branches)
+            // Alternation node representing (...) with branches
             if (token.type == Token.TokenType.ALTERNATION) {
                 if (token.quantifier == Token.Quantifier.ONE) {
                     for (List<Token> alt : token.alternatives) {
                         Captures temp = caps.copy();
                         int next = matchTokens(input, i, alt, temp);
                         if (next != -1) {
-                            if (token.capturing) {
-                                temp.start = i;
-                                temp.end = next;
-                            }
+                            if (token.capturing) temp.set(token.groupIndex, i, next);
                             if (matchesRemaining(input, next, j + 1, temp)) {
-                                caps.start = temp.start;
-                                caps.end = temp.end;
+                                caps.replaceWith(temp);
                                 return true;
                             }
                         }
                     }
                     return false;
+
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                    // try taking one
+                    // take it
                     for (List<Token> alt : token.alternatives) {
                         Captures temp = caps.copy();
                         int next = matchTokens(input, i, alt, temp);
                         if (next != -1) {
-                            if (token.capturing) {
-                                temp.start = i;
-                                temp.end = next;
-                            }
+                            if (token.capturing) temp.set(token.groupIndex, i, next);
                             if (matchesRemaining(input, next, j + 1, temp)) {
-                                caps.start = temp.start;
-                                caps.end = temp.end;
+                                caps.replaceWith(temp);
                                 return true;
                             }
                         }
                     }
                     // or skip
                     return matchesRemaining(input, i, j + 1, caps);
-                } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                    // Greedily repeat alternation, then backtrack
+
+                } else { // ONE_OR_MORE
                     int pos = i;
                     List<Integer> posHistory = new ArrayList<>();
                     List<Captures> capHistory = new ArrayList<>();
+
                     while (true) {
                         int bestNext = -1;
                         Captures bestCaps = null;
@@ -97,10 +85,7 @@ public class RegexMatcher {
                             Captures temp = caps.copy();
                             int next = matchTokens(input, pos, alt, temp);
                             if (next != -1 && next > pos) {
-                                if (token.capturing) {
-                                    temp.start = pos;
-                                    temp.end = next;
-                                }
+                                if (token.capturing) temp.set(token.groupIndex, pos, next);
                                 if (next > bestNext) {
                                     bestNext = next;
                                     bestCaps = temp;
@@ -111,25 +96,21 @@ public class RegexMatcher {
                         posHistory.add(bestNext);
                         capHistory.add(bestCaps);
                         pos = bestNext;
-                        // update running capture to the latest repetition
-                        caps.start = bestCaps.start;
-                        caps.end = bestCaps.end;
                     }
-
                     if (posHistory.isEmpty()) return false;
                     j++;
-                    // Backtrack over repetition count
                     for (int idx = posHistory.size() - 1; idx >= 0; idx--) {
                         int p = posHistory.get(idx);
-                        Captures temp = capHistory.get(idx);
-                        Captures saved = caps.copy();
-                        caps.start = temp.start;
-                        caps.end = temp.end;
-                        if (matchesRemaining(input, p, j, caps)) {
+                        Captures temp = capHistory.get(idx).copy();
+                        if (anchoredEnd && j >= tokens.size()) {
+                            if (p == input.length()) {
+                                caps.replaceWith(temp);
+                                return true;
+                            }
+                        } else if (matchesRemaining(input, p, j, temp)) {
+                            caps.replaceWith(temp);
                             return true;
                         }
-                        caps.start = saved.start;
-                        caps.end = saved.end;
                     }
                     return false;
                 }
@@ -141,7 +122,20 @@ public class RegexMatcher {
                     if (next == -1) return false;
                     i = next;
                     j++;
-                } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+
+                } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+                    Captures takeCaps = caps.copy();
+                    int next = matchGroupOnce(input, i, token, takeCaps);
+                    if (next != -1) {
+                        if (matchesRemaining(input, next, j + 1, takeCaps)) {
+                            caps.replaceWith(takeCaps);
+                            return true;
+                        }
+                    }
+                    // skip
+                    return matchesRemaining(input, i, j + 1, caps);
+
+                } else { // ONE_OR_MORE
                     int pos = i;
                     int count = 0;
                     List<Integer> posHistory = new ArrayList<>();
@@ -157,47 +151,44 @@ public class RegexMatcher {
                     }
                     if (count == 0) return false;
                     j++;
-                    // Greedy backoff
                     for (int idx = posHistory.size() - 1; idx >= 0; idx--) {
-                        Captures temp = capHistory.get(idx);
+                        Captures temp = capHistory.get(idx).copy();
                         int p = posHistory.get(idx);
-                        Captures saved = caps.copy();
-                        caps.start = temp.start;
-                        caps.end = temp.end;
                         if (anchoredEnd && j >= tokens.size()) {
-                            if (p == input.length()) return true;
-                        } else if (matchesRemaining(input, p, j, caps)) {
+                            if (p == input.length()) {
+                                caps.replaceWith(temp);
+                                return true;
+                            }
+                        } else if (matchesRemaining(input, p, j, temp)) {
+                            caps.replaceWith(temp);
                             return true;
                         }
-                        // restore and try fewer repetitions
-                        caps.start = saved.start;
-                        caps.end = saved.end;
                     }
                     return false;
-
-                } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                    Captures takeCaps = caps.copy();
-                    int next = matchGroupOnce(input, i, token, takeCaps);
-                    if (next != -1) {
-                        if (matchesRemaining(input, next, j + 1, takeCaps)) {
-                            caps.start = takeCaps.start;
-                            caps.end = takeCaps.end;
-                            return true;
-                        }
-                    }
-                    // try skipping the group
-                    return matchesRemaining(input, i, j + 1, caps);
                 }
                 continue;
             }
 
-            // Handle simple tokens (including BACKREF) with quantifiers
+            // Simple tokens (CHAR, DOT, DIGIT, WORD, CHARCLASS, BACKREF)
             if (token.quantifier == Token.Quantifier.ONE) {
                 int next = token.matchOnce(input, i, caps);
                 if (next == -1) return false;
                 i = next;
                 j++;
-            } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+
+            } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
+                Captures takeCaps = caps.copy();
+                int next = token.matchOnce(input, i, takeCaps);
+                if (next != -1) {
+                    if (matchesRemaining(input, next, j + 1, takeCaps)) {
+                        caps.replaceWith(takeCaps);
+                        return true;
+                    }
+                }
+                // skip
+                return matchesRemaining(input, i, j + 1, caps);
+
+            } else { // ONE_OR_MORE
                 List<Integer> posHistory = new ArrayList<>();
                 List<Captures> capHistory = new ArrayList<>();
                 int pos2 = i;
@@ -211,39 +202,25 @@ public class RegexMatcher {
                 }
                 if (posHistory.isEmpty()) return false;
                 j++;
-                // Greedy backoff over the number of repetitions
                 for (int idx = posHistory.size() - 1; idx >= 0; idx--) {
-                    Captures temp = capHistory.get(idx);
+                    Captures temp = capHistory.get(idx).copy();
                     int p = posHistory.get(idx);
-                    Captures saved = caps.copy();
-                    caps.start = temp.start;
-                    caps.end = temp.end;
                     if (j >= tokens.size()) {
                         if (anchoredEnd) {
-                            if (p == input.length()) return true;
+                            if (p == input.length()) {
+                                caps.replaceWith(temp);
+                                return true;
+                            }
                         } else {
+                            caps.replaceWith(temp);
                             return true;
                         }
-                    } else if (matchesRemaining(input, p, j, caps)) {
+                    } else if (matchesRemaining(input, p, j, temp)) {
+                        caps.replaceWith(temp);
                         return true;
                     }
-                    caps.start = saved.start;
-                    caps.end = saved.end;
                 }
                 return false;
-
-            } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                Captures takeCaps = caps.copy();
-                int next = token.matchOnce(input, i, takeCaps);
-                if (next != -1) {
-                    if (matchesRemaining(input, next, j + 1, takeCaps)) {
-                        caps.start = takeCaps.start;
-                        caps.end = takeCaps.end;
-                        return true;
-                    }
-                }
-                // skip
-                return matchesRemaining(input, i, j + 1, caps);
             }
         }
 
@@ -255,32 +232,21 @@ public class RegexMatcher {
         int res = matchTokens(input, i, groupToken.groupTokens, work);
         if (res == -1) return -1;
         if (groupToken.capturing) {
-            work.start = i;
-            work.end = res;
+            work.set(groupToken.groupIndex, i, res);
         }
-        caps.start = work.start;
-        caps.end = work.end;
+        caps.replaceWith(work);
         return res;
-    }
-
-    private boolean matchGroup(String input, int i, List<Token> groupTokens, Captures caps) {
-        return matchTokens(input, i, groupTokens, caps) != -1;
-    }
-
-    private int advanceGroup(String input, int i, Token groupToken, Captures caps) {
-        return matchGroupOnce(input, i, groupToken, caps);
     }
 
     private int matchTokens(String input, int i, List<Token> groupTokens, Captures caps) {
         Captures work = caps.copy();
-
         int j = 0;
         int pos = i;
+
         while (j < groupTokens.size()) {
             Token token = groupTokens.get(j);
 
             if (token.type == Token.TokenType.ALTERNATION) {
-                // Remainder of the group after this alternation
                 List<Token> remainder = groupTokens.subList(j + 1, groupTokens.size());
 
                 if (token.quantifier == Token.Quantifier.ONE) {
@@ -288,54 +254,39 @@ public class RegexMatcher {
                         Captures branchCaps = work.copy();
                         int mid = matchTokens(input, pos, altBranch, branchCaps);
                         if (mid == -1) continue;
-
-                        if (token.capturing) {
-                            branchCaps.start = pos;
-                            branchCaps.end = mid;
-                        }
-
+                        if (token.capturing) branchCaps.set(token.groupIndex, pos, mid);
                         int endPos = matchTokens(input, mid, remainder, branchCaps);
                         if (endPos != -1) {
-                            work.start = branchCaps.start;
-                            work.end = branchCaps.end;
-                            caps.start = work.start;
-                            caps.end = work.end;
+                            work.replaceWith(branchCaps);
+                            caps.replaceWith(work);
                             return endPos;
                         }
                     }
                     return -1;
+
                 } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                    // Try taking the alternation once, then the remainder
                     for (List<Token> altBranch : token.alternatives) {
                         Captures branchCaps = work.copy();
                         int mid = matchTokens(input, pos, altBranch, branchCaps);
                         if (mid == -1) continue;
-
-                        if (token.capturing) {
-                            branchCaps.start = pos;
-                            branchCaps.end = mid;
-                        }
-
+                        if (token.capturing) branchCaps.set(token.groupIndex, pos, mid);
                         int endPos = matchTokens(input, mid, remainder, branchCaps);
                         if (endPos != -1) {
-                            work.start = branchCaps.start;
-                            work.end = branchCaps.end;
-                            caps.start = work.start;
-                            caps.end = work.end;
+                            work.replaceWith(branchCaps);
+                            caps.replaceWith(work);
                             return endPos;
                         }
                     }
-                    // Or skip this alternation and continue with the remainder directly
+                    // skip and continue remainder
                     j++;
                     continue;
-                } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
-                    // Consume 1+ repetitions, then try remainder with backoff
+
+                } else { // ONE_OR_MORE
                     List<Integer> posHistory = new ArrayList<>();
                     List<Captures> capHistory = new ArrayList<>();
                     int cur = pos;
-
-                    // First repetition must match
                     boolean firstMatched = false;
+
                     while (true) {
                         int bestNext = -1;
                         Captures bestCaps = null;
@@ -343,10 +294,7 @@ public class RegexMatcher {
                             Captures branchCaps = work.copy();
                             int mid = matchTokens(input, cur, altBranch, branchCaps);
                             if (mid != -1 && mid > cur) {
-                                if (token.capturing) {
-                                    branchCaps.start = cur;
-                                    branchCaps.end = mid;
-                                }
+                                if (token.capturing) branchCaps.set(token.groupIndex, cur, mid);
                                 if (mid > bestNext) {
                                     bestNext = mid;
                                     bestCaps = branchCaps;
@@ -358,38 +306,35 @@ public class RegexMatcher {
                         posHistory.add(bestNext);
                         capHistory.add(bestCaps);
                         cur = bestNext;
-                        work.start = bestCaps.start;
-                        work.end = bestCaps.end;
+                        work.replaceWith(bestCaps);
                     }
-
                     if (!firstMatched) return -1;
 
-                    // Try the remainder after k repetitions, backing off k
                     for (int idx = posHistory.size() - 1; idx >= 0; idx--) {
                         int after = posHistory.get(idx);
-                        Captures ccap = capHistory.get(idx);
+                        Captures ccap = capHistory.get(idx).copy();
                         Captures saved = work.copy();
-                        work.start = ccap.start;
-                        work.end = ccap.end;
-
+                        work.replaceWith(ccap);
                         int endPos = matchTokens(input, after, remainder, work);
                         if (endPos != -1) {
-                            caps.start = work.start;
-                            caps.end = work.end;
+                            caps.replaceWith(work);
                             return endPos;
                         }
-                        work.start = saved.start;
-                        work.end = saved.end;
+                        work.replaceWith(saved);
                     }
                     return -1;
                 }
-            } else if (token.type == Token.TokenType.GROUP) {
+            }
+
+            if (token.type == Token.TokenType.GROUP) {
                 int result = matchGroupOnce(input, pos, token, work);
                 if (result == -1) return -1;
                 pos = result;
                 j++;
+                continue;
+            }
 
-            } else if (token.quantifier == Token.Quantifier.ONE) {
+            if (token.quantifier == Token.Quantifier.ONE) {
                 int np = token.matchOnce(input, pos, work);
                 if (np == -1) return -1;
                 pos = np;
@@ -397,12 +342,10 @@ public class RegexMatcher {
 
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
                 int np = token.matchOnce(input, pos, work);
-                if (np != -1) {
-                    pos = np;
-                }
+                if (np != -1) pos = np;
                 j++;
 
-            } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
+            } else { // ONE_OR_MORE
                 int count = 0;
                 while (true) {
                     int np = token.matchOnce(input, pos, work);
@@ -412,14 +355,10 @@ public class RegexMatcher {
                 }
                 if (count == 0) return -1;
                 j++;
-
-            } else {
-                return -1;
             }
         }
 
-        caps.start = work.start;
-        caps.end = work.end;
+        caps.replaceWith(work);
         return pos;
     }
 
@@ -433,19 +372,23 @@ public class RegexMatcher {
                 int end = findClosingParen(pattern, i);
                 String group = pattern.substring(i + 1, end);
 
+                // Split by top-level |
                 List<List<Token>> alternatives = new ArrayList<>();
-                int lastSplit = 0;
+                int last = 0;
                 int depth = 0;
-
                 for (int j = 0; j <= group.length(); j++) {
                     if (j == group.length() || (group.charAt(j) == '|' && depth == 0)) {
-                        String part = group.substring(lastSplit, j);
+                        String part = group.substring(last, j);
                         alternatives.add(tokenize(part));
-                        lastSplit = j + 1;
+                        last = j + 1;
                     } else if (group.charAt(j) == '(') {
                         depth++;
                     } else if (group.charAt(j) == ')') {
                         depth--;
+                    } else if (group.charAt(j) == '[') {
+                        // skip char class
+                        int close = findClosingBracket(group, j);
+                        j = close;
                     }
                 }
 
@@ -454,16 +397,14 @@ public class RegexMatcher {
                 } else {
                     token = new Token(alternatives);
                 }
-                // mark the very first group (simple or alternation) as capturing
-                if (!firstCaptureAssigned) {
-                    token.capturing = true;
-                    token.groupIndex = 1;
-                    firstCaptureAssigned = true;
-                }
+                // Assign capturing index for every ()
+                token.capturing = true;
+                token.groupIndex = nextGroupIndex++;
                 i = end + 1;
 
             } else if (c == '\\' && i + 1 < pattern.length()) {
-                char next = pattern.charAt(i + 1);
+                int j = i + 1;
+                char next = pattern.charAt(j);
                 if (next == 'd') {
                     token = new Token(Token.TokenType.DIGIT, "");
                     i += 2;
@@ -471,26 +412,25 @@ public class RegexMatcher {
                     token = new Token(Token.TokenType.WORD, "");
                     i += 2;
                 } else if (Character.isDigit(next)) {
-                    int refNum = Character.getNumericValue(next);
-                    if (refNum == 1) {
-                        token = new Token(refNum);
-                    } else {
-                        throw new RuntimeException("Only \\1 backreference supported in this stage");
-                    }
-                    i += 2;
+                    // Parse multi-digit backref (\1, \2, \12, ...)
+                    int start = j;
+                    while (j < pattern.length() && Character.isDigit(pattern.charAt(j))) j++;
+                    int refNum = Integer.parseInt(pattern.substring(start, j));
+                    token = new Token(refNum);
+                    i = j;
                 } else {
+                    // Escaped literal
                     token = new Token(Token.TokenType.CHAR, String.valueOf(next));
                     i += 2;
                 }
 
             } else if (c == '[') {
-                int end = pattern.indexOf(']', i + 1);
-                if (end == -1) throw new RuntimeException("Unclosed [");
-                String group = pattern.substring(i + 1, end);
-                if (group.startsWith("^")) {
-                    token = new Token(Token.TokenType.NEGATIVE_GROUP, group.substring(1));
+                int end = findClosingBracket(pattern, i);
+                String cls = pattern.substring(i + 1, end);
+                if (cls.startsWith("^")) {
+                    token = new Token(Token.TokenType.NEGATIVE_GROUP, cls.substring(1));
                 } else {
-                    token = new Token(Token.TokenType.POSITIVE_GROUP, group);
+                    token = new Token(Token.TokenType.POSITIVE_GROUP, cls);
                 }
                 i = end + 1;
 
@@ -503,36 +443,37 @@ public class RegexMatcher {
                 i++;
             }
 
-            // Unified quantifier handling
+            // Quantifiers
             if (i < pattern.length()) {
-                char next = pattern.charAt(i);
-                if (next == '+') {
-                    token.quantifier = Token.Quantifier.ONE_OR_MORE;
-                    i++;
-                } else if (next == '?') {
-                    token.quantifier = Token.Quantifier.ZERO_OR_ONE;
-                    i++;
-                }
+                char q = pattern.charAt(i);
+                if (q == '+') { token.quantifier = Token.Quantifier.ONE_OR_MORE; i++; }
+                else if (q == '?') { token.quantifier = Token.Quantifier.ZERO_OR_ONE; i++; }
             }
 
             tokens.add(token);
         }
-
         return tokens;
     }
 
     private int findClosingParen(String pattern, int start) {
         int depth = 0;
         for (int i = start; i < pattern.length(); i++) {
-            if (pattern.charAt(i) == '(') {
-                depth++;
-            } else if (pattern.charAt(i) == ')') {
+            char c = pattern.charAt(i);
+            if (c == '(') depth++;
+            else if (c == ')') {
                 depth--;
-                if (depth == 0) {
-                    return i;
-                }
+                if (depth == 0) return i;
+            } else if (c == '[') {
+                i = findClosingBracket(pattern, i);
             }
         }
         throw new RuntimeException("Unclosed parenthesis in pattern");
+    }
+
+    private int findClosingBracket(String pattern, int start) {
+        for (int i = start + 1; i < pattern.length(); i++) {
+            if (pattern.charAt(i) == ']') return i;
+        }
+        throw new RuntimeException("Unclosed [ in pattern");
     }
 }

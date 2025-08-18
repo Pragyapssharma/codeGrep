@@ -1,27 +1,31 @@
-import java.io.IOException;
-import java.util.Scanner;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 public class Main {
-  public static void main(String[] args){
-    if (args.length != 2 || !args[0].equals("-E")) {
-      System.out.println("Usage: ./your_program.sh -E <pattern>");
-      System.exit(1);
+    public static void main(String[] args) throws Exception {
+        String pattern = null;
+
+        for (int i = 0; i < args.length; i++) {
+            if ("-E".equals(args[i]) && i + 1 < args.length) {
+                pattern = args[++i];
+                break;
+            }
+        }
+
+        if (pattern == null) {
+            System.err.println("Usage: java Main -E \"<pattern>\"");
+            System.exit(2);
+        }
+
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        StringBuilder sb = new StringBuilder();
+        int ch;
+        while ((ch = br.read()) != -1) sb.append((char) ch);
+        String input = sb.toString();
+
+        RegexMatcher matcher = new RegexMatcher(pattern);
+        boolean ok = matcher.matches(input);
+
+        System.exit(ok ? 0 : 1);
     }
-
-    String pattern = args[1];  
-    Scanner scanner = new Scanner(System.in);
-    String inputLine = scanner.nextLine();
-
-    // Debugging output
-    System.err.println("Logs from your program will appear here!");
-     
- RegexMatcher matcher = new RegexMatcher(pattern);
-    if (matcher.matches(inputLine)) {
-      System.exit(0);
-    } else {
-      System.exit(1);
-    }
-  }
-
 }
-
