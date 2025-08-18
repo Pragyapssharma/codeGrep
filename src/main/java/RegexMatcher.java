@@ -236,6 +236,13 @@ public class RegexMatcher {
         }
         return res;
     }
+    
+    private int matchAtomOnce(String input, int pos, Token token, Captures caps) {
+        if (token.type == Token.TokenType.GROUP) {
+            return matchGroupOnce(input, pos, token, caps);
+        }
+        return token.matchOnce(input, pos, caps);
+    }
 
     private int matchTokens(String input, int i, List<Token> groupTokens, Captures caps) {
         // IMPORTANT: operate on live 'caps' so inner groups are visible to following backrefs
@@ -329,20 +336,25 @@ public class RegexMatcher {
                 j++;
                 continue;
             }
+            
+         // Generic atom handling (group or non-group) with quantifiers
+            List<Token> remainder = groupTokens.subList(j + 1, groupTokens.size());
 
             if (token.quantifier == Token.Quantifier.ONE) {
-                int np = token.matchOnce(input, pos, caps);
+            	int np = matchAtomOnce(input, pos, token, caps);
                 if (np == -1) return -1;
                 pos = np;
                 j++;
 
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-                Captures temp = caps.copy();
-                int np = token.matchOnce(input, pos, temp);
+            	Captures takeCaps = caps.copy();
+            	int np = matchAtomOnce(input, pos, token, takeCaps);
                 if (np != -1) {
-                    // commit this branch and continue
-                    caps.replaceWith(temp);
-                    pos = np;
+                	int endPos = matchTokens(input, np, remainder, takeCaps);
+                    if (endPos != -1) {
+                        caps.replaceWith(takeCaps);
+                        return endPos;
+                    }
                 }
                 j++;
 
@@ -350,33 +362,28 @@ public class RegexMatcher {
                 int count = 0;
                 List<Integer> posHistory = new ArrayList<>();
                 List<Captures> capHistory = new ArrayList<>();
+                int cur = pos;
                 while (true) {
                     Captures temp = caps.copy();
-                    int np = token.matchOnce(input, pos, temp);
-                    if (np == -1 || np == pos) break;
-                    count++;
-                    pos = np;
-                    posHistory.add(pos);
+                    int np = matchAtomOnce(input, cur, token, temp);
+                    if (np == -1 || np == cur) break;
+                    cur = np;
+                    posHistory.add(cur);
                     capHistory.add(temp);
-                    // commit greedily
-                    caps.replaceWith(temp);
                 }
-                if (count == 0) return -1;
+                if (posHistory.isEmpty()) return -1;
 
-                // Backtrack repetitions if needed
+                // Backtrack repetitions against the remainder
                 for (int idx = posHistory.size() - 1; idx >= 0; idx--) {
-                    Captures saved = caps.copy();
-                    caps.replaceWith(capHistory.get(idx));
+                    Captures branchCaps = capHistory.get(idx).copy();
                     int after = posHistory.get(idx);
-                    // Try the remainder (the rest of the groupTokens handled by the main loop)
-                    // We simply keep current pos set to 'after' and proceed
-                    // but since we are inside the loop, emulate by setting pos and breaking conditions carefully.
-                    // Here we stop backtracking and let the loop continue from current (j+1)
-                    // by storing the chosen state and position.
-                    pos = after;
-                    break;
+                    int endPos = matchTokens(input, after, remainder, branchCaps);
+                    if (endPos != -1) {
+                        caps.replaceWith(branchCaps);
+                        return endPos;
+                    }
                 }
-                j++;
+                return -1;
             }
         }
 
