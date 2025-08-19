@@ -329,13 +329,13 @@ public class RegexMatcher {
                 }
             }
 
-            if (token.type == Token.TokenType.GROUP) {
-                int result = matchGroupOnce(input, pos, token, caps);
-                if (result == -1) return -1;
-                pos = result;
-                j++;
-                continue;
-            }
+//            if (token.type == Token.TokenType.GROUP) {
+//                int result = matchGroupOnce(input, pos, token, caps);
+//                if (result == -1) return -1;
+//                pos = result;
+//                j++;
+//                continue;
+//            }
             
          // Generic atom handling (group or non-group) with quantifiers
             List<Token> remainder = groupTokens.subList(j + 1, groupTokens.size());
@@ -358,9 +358,9 @@ public class RegexMatcher {
                     }
                 }
                 j++;
+                continue;
 
             } else { // ONE_OR_MORE
-                int count = 0;
                 List<Integer> posHistory = new ArrayList<>();
                 List<Captures> capHistory = new ArrayList<>();
                 int cur = pos;
