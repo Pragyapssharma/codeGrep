@@ -68,9 +68,27 @@ public class Captures {
                         if (nested != null) sb.append(nested);
                     }
                     break;
-                default:
-                    String raw = getGroup(input, t.groupIndex);
-                    if (raw != null) sb.append(raw);
+                case GROUP: {
+                    // Try to resolve nested group structurally first
+                    if (t.groupIndex >= 0) {
+                        nestedTokens = getGroupTokens(t.groupIndex);
+                        if (!nestedTokens.isEmpty()) {
+                            sb.append(resolveGroup(input, t.groupIndex, nestedTokens));
+                            break;
+                        }
+                        String raw = getGroup(input, t.groupIndex);
+                        if (raw != null) sb.append(raw);
+                    }
+                    break;
+                }
+                default: {
+                    // Fallback: if this token corresponds to a captured group span, use it
+                    if (t.groupIndex >= 0) {
+                        String raw = getGroup(input, t.groupIndex);
+                        if (raw != null) sb.append(raw);
+                    }
+                    break;
+                }
             }
         }
         return sb.toString();
