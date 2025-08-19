@@ -234,9 +234,30 @@ public class RegexMatcher {
         if (groupToken.capturing) {
             caps.set(groupToken.groupIndex, i, res);
             caps.setTokens(groupToken.groupIndex, groupToken.groupTokens);
-            System.out.println("grp inx : "+groupToken.groupIndex + "grop token : " + groupToken.groupTokens);
+            List<Token> resolvedTokens = resolveNestedTokens(input, groupToken.groupTokens, caps);
+            caps.setTokens(groupToken.groupIndex, resolvedTokens);
+
         }
         return res;
+    }
+    
+    private List<Token> resolveNestedTokens(String input, List<Token> tokens, Captures caps) {
+        List<Token> resolved = new java.util.ArrayList<>();
+
+        for (Token t : tokens) {
+            if (t.type == Token.TokenType.BACKREF) {
+                String ref = caps.resolveGroup(input, t.backrefIndex, caps.getGroupTokens(t.backrefIndex));
+                if (ref != null) {
+                    for (char c : ref.toCharArray()) {
+                        resolved.add(new Token(Token.TokenType.CHAR, String.valueOf(c)));
+                    }
+                }
+            } else {
+                resolved.add(t);
+            }
+        }
+
+        return resolved;
     }
     
     private int matchAtomOnce(String input, int pos, Token token, Captures caps) {

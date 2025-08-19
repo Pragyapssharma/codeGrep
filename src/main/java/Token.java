@@ -61,7 +61,9 @@ public class Token {
                 String resolved = tokens.isEmpty()
                     ? caps.getGroup(input, backrefIndex)
                     : caps.resolveGroup(input, backrefIndex, tokens);
-
+                
+                System.out.println("Resolving \\" + backrefIndex + " to: '" + resolved + "'");
+                
                 if (resolved == null) return -1;
                 int len = resolved.length();
                 if (i + len <= input.length() && input.startsWith(resolved, i)) {
