@@ -42,6 +42,8 @@ public class Captures {
     public void replaceWith(Captures other) {
         this.groups.clear();
         this.groups.putAll(other.groups);
+        this.groupTokenMap.clear();
+        this.groupTokenMap.putAll(other.groupTokenMap);
     }
     
     public String resolveGroup(String input, int idx, List<Token> groupTokens) {
