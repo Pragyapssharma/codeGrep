@@ -233,6 +233,7 @@ public class RegexMatcher {
         if (res == -1) return -1;
         if (groupToken.capturing) {
             caps.set(groupToken.groupIndex, i, res);
+            caps.setTokens(groupToken.groupIndex, groupToken.groupTokens);
         }
         return res;
     }

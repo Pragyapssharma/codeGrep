@@ -1,4 +1,5 @@
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Captures {
@@ -9,10 +10,13 @@ public class Captures {
     }
 
     private final Map<Integer, Span> groups = new HashMap<>();
+    private final Map<Integer, List<Token>> groupTokenMap = new HashMap<>();
+
 
     public Captures copy() {
         Captures c = new Captures();
         c.groups.putAll(this.groups);
+        c.groupTokenMap.putAll(this.groupTokenMap);
         return c;
     }
 
@@ -26,9 +30,49 @@ public class Captures {
         if (s.start < 0 || s.end < s.start || s.end > input.length()) return null;
         return input.substring(s.start, s.end);
     }
+    
+    public void setTokens(int idx, List<Token> tokens) {
+        groupTokenMap.put(idx, tokens);
+    }
+
+    public List<Token> getGroupTokens(int idx) {
+        return groupTokenMap.getOrDefault(idx, List.of());
+    }
 
     public void replaceWith(Captures other) {
         this.groups.clear();
         this.groups.putAll(other.groups);
     }
+    
+    public String resolveGroup(String input, int idx, List<Token> groupTokens) {
+        
+    	if (groupTokens == null || groupTokens.isEmpty()) {
+            return getGroup(input, idx);
+        }
+    	
+    	StringBuilder sb = new StringBuilder();
+    	
+        for (Token t : groupTokens) {
+            switch (t.type) {
+                case CHAR:
+                    sb.append(t.text);
+                    break;
+                case BACKREF:
+                    List<Token> nestedTokens = getGroupTokens(t.backrefIndex);
+                    if (!nestedTokens.isEmpty()) {
+                        sb.append(resolveGroup(input, t.backrefIndex, nestedTokens)); // recursive
+                    } else {
+                        String nested = getGroup(input, t.backrefIndex);
+                        if (nested != null) sb.append(nested);
+                    }
+                    break;
+                default:
+                    String raw = getGroup(input, t.groupIndex);
+                    if (raw != null) sb.append(raw);
+            }
+        }
+        return sb.toString();
+    }
+    
+    
 }
