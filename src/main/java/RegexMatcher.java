@@ -228,13 +228,20 @@ public class RegexMatcher {
     }
 
     private int matchGroupOnce(String input, int i, Token groupToken, Captures caps) {
-        // Work directly on the live captures so nested backrefs see inner groups
+        // Attempt to match the group tokens starting at position i
         int res = matchTokens(input, i, groupToken.groupTokens, caps);
         if (res == -1) return -1;
+
+        // If this group is capturing, record its span and tokens
         if (groupToken.capturing) {
             caps.set(groupToken.groupIndex, i, res);
             caps.setTokens(groupToken.groupIndex, groupToken.groupTokens);
+
+            // Optional: Debug output to confirm capture
+            String captured = input.substring(i, res);
+            System.out.println("Captured group \\" + groupToken.groupIndex + ": '" + captured + "'");
         }
+
         return res;
     }
     
