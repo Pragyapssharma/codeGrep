@@ -337,13 +337,6 @@ public class RegexMatcher {
                 }
             }
 
-//            if (token.type == Token.TokenType.GROUP) {
-//                int result = matchGroupOnce(input, pos, token, caps);
-//                if (result == -1) return -1;
-//                pos = result;
-//                j++;
-//                continue;
-//            }
             
          // Generic atom handling (group or non-group) with quantifiers
             List<Token> remainder = groupTokens.subList(j + 1, groupTokens.size());
@@ -416,7 +409,15 @@ public class RegexMatcher {
                 for (int j = 0; j <= group.length(); j++) {
                     if (j == group.length() || (group.charAt(j) == '|' && depth == 0)) {
                         String part = group.substring(last, j);
-                        alternatives.add(tokenizeWithGroups(part));
+                        List<Token> innerTokens = tokenize(part);
+                        for (Token t : innerTokens) {
+                            if (t.type == Token.TokenType.GROUP && !t.capturing) {
+                                t.capturing = true;
+                                t.groupIndex = nextGroupIndex++;
+                            }
+                        }
+                        alternatives.add(innerTokens);
+
                         last = j + 1;
                     } else if (group.charAt(j) == '(') {
                         depth++;
@@ -489,25 +490,6 @@ public class RegexMatcher {
         return tokens;
     }
     
-    private List<Token> tokenizeWithGroups(String pattern) {
-        List<Token> tokens = new ArrayList<>();
-        for (Token t : tokenize(pattern)) {
-            if (t.type == Token.TokenType.GROUP) {
-                t.capturing = true;
-                t.groupIndex = nextGroupIndex++;
-                // Recursively assign group indices to nested tokens
-                for (Token inner : t.groupTokens) {
-                    if (inner.type == Token.TokenType.GROUP) {
-                        inner.capturing = true;
-                        inner.groupIndex = nextGroupIndex++;
-                    }
-                }
-            }
-            tokens.add(t);
-        }
-        return tokens;
-    }
-
     private int findClosingParen(String pattern, int start) {
         int depth = 0;
         for (int i = start; i < pattern.length(); i++) {
