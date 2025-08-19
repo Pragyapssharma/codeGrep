@@ -234,6 +234,7 @@ public class RegexMatcher {
         if (groupToken.capturing) {
             caps.set(groupToken.groupIndex, i, res);
             caps.setTokens(groupToken.groupIndex, groupToken.groupTokens);
+            System.out.println("grp inx : "+groupToken.groupIndex + "grop token : " + groupToken.groupTokens);
         }
         return res;
     }
