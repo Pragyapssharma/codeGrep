@@ -409,15 +409,14 @@ public class RegexMatcher {
                 for (int j = 0; j <= group.length(); j++) {
                     if (j == group.length() || (group.charAt(j) == '|' && depth == 0)) {
                         String part = group.substring(last, j);
-                        List<Token> innerTokens = tokenize(part);
-                        for (Token t : innerTokens) {
+                        List<Token> partTokens = tokenize(part);
+                        for (Token t : partTokens) {
                             if (t.type == Token.TokenType.GROUP && !t.capturing) {
                                 t.capturing = true;
                                 t.groupIndex = nextGroupIndex++;
                             }
                         }
-                        alternatives.add(innerTokens);
-
+                        alternatives.add(partTokens);
                         last = j + 1;
                     } else if (group.charAt(j) == '(') {
                         depth++;
@@ -434,9 +433,11 @@ public class RegexMatcher {
                 } else {
                     token = new Token(alternatives);
                 }
+
                 token.capturing = true;
                 token.groupIndex = nextGroupIndex++;
                 i = end + 1;
+            
 
             } else if (c == '\\' && i + 1 < pattern.length()) {
                 int j = i + 1;
