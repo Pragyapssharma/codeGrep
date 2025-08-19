@@ -62,7 +62,7 @@ public class Captures {
                 case BACKREF:
                     List<Token> nestedTokens = getGroupTokens(t.backrefIndex);
                     if (!nestedTokens.isEmpty()) {
-                        sb.append(resolveGroup(input, t.backrefIndex, nestedTokens)); // recursive
+                        sb.append(resolveGroup(input, t.backrefIndex, nestedTokens));
                     } else {
                         String nested = getGroup(input, t.backrefIndex);
                         if (nested != null) sb.append(nested);
