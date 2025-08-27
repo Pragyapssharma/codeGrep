@@ -47,12 +47,21 @@ public class Captures {
     }
     
     public String resolveGroup(String input, int idx, List<Token> groupTokens) {
-        
-    	if (groupTokens == null || groupTokens.isEmpty()) {
-            return getGroup(input, idx);
+        return resolveGroup(input, idx, groupTokens, new java.util.HashSet<>());
+    }
+
+    private String resolveGroup(String input, int idx, List<Token> groupTokens, java.util.Set<Integer> visited) {
+        if (groupTokens == null || groupTokens.isEmpty()) {
+            String raw = getGroup(input, idx);
+            return raw != null ? raw : "";
         }
-    	
-    	boolean reconstructible = true;
+        if (visited.contains(idx)) {
+            String raw = getGroup(input, idx);
+            return raw != null ? raw : "";
+        }
+        visited.add(idx);
+
+        boolean reconstructible = true;
         for (Token t : groupTokens) {
             if (t.quantifier != Token.Quantifier.ONE) { reconstructible = false; break; }
             switch (t.type) {
@@ -65,30 +74,32 @@ public class Captures {
             }
             if (!reconstructible) break;
         }
-        if (!reconstructible) return getGroup(input, idx);
-        
-    	
-    	StringBuilder sb = new StringBuilder();
-    	
+        if (!reconstructible) {
+            String raw = getGroup(input, idx);
+            return raw != null ? raw : "";
+        }
+
+        StringBuilder sb = new StringBuilder();
         for (Token t : groupTokens) {
             switch (t.type) {
                 case CHAR:
                     sb.append(t.text);
                     break;
-                case BACKREF:
+                case BACKREF: {
                     List<Token> nestedTokens = getGroupTokens(t.backrefIndex);
                     if (!nestedTokens.isEmpty()) {
-                        sb.append(resolveGroup(input, t.backrefIndex, nestedTokens));
+                        sb.append(resolveGroup(input, t.backrefIndex, nestedTokens, visited));
                     } else {
                         String nested = getGroup(input, t.backrefIndex);
                         if (nested != null) sb.append(nested);
                     }
                     break;
+                }
                 case GROUP: {
-                	if (t.groupIndex >= 0) {
+                    if (t.groupIndex >= 0) {
                         List<Token> nestedTokens2 = getGroupTokens(t.groupIndex);
                         if (!nestedTokens2.isEmpty()) {
-                            sb.append(resolveGroup(input, t.groupIndex, nestedTokens2));
+                            sb.append(resolveGroup(input, t.groupIndex, nestedTokens2, visited));
                         } else {
                             String raw = getGroup(input, t.groupIndex);
                             if (raw != null) sb.append(raw);
@@ -107,6 +118,69 @@ public class Captures {
         }
         return sb.toString();
     }
+
+    
+//    public String resolveGroup(String input, int idx, List<Token> groupTokens) {
+//        
+//    	if (groupTokens == null || groupTokens.isEmpty()) {
+//            return getGroup(input, idx);
+//        }
+//    	
+//    	boolean reconstructible = true;
+//        for (Token t : groupTokens) {
+//            if (t.quantifier != Token.Quantifier.ONE) { reconstructible = false; break; }
+//            switch (t.type) {
+//                case CHAR:
+//                case BACKREF:
+//                case GROUP:
+//                    break;
+//                default:
+//                    reconstructible = false; break;
+//            }
+//            if (!reconstructible) break;
+//        }
+//        if (!reconstructible) return getGroup(input, idx);
+//        
+//    	
+//    	StringBuilder sb = new StringBuilder();
+//    	
+//        for (Token t : groupTokens) {
+//            switch (t.type) {
+//                case CHAR:
+//                    sb.append(t.text);
+//                    break;
+//                case BACKREF:
+//                    List<Token> nestedTokens = getGroupTokens(t.backrefIndex);
+//                    if (!nestedTokens.isEmpty()) {
+//                        sb.append(resolveGroup(input, t.backrefIndex, nestedTokens));
+//                    } else {
+//                        String nested = getGroup(input, t.backrefIndex);
+//                        if (nested != null) sb.append(nested);
+//                    }
+//                    break;
+//                case GROUP: {
+//                	if (t.groupIndex >= 0) {
+//                        List<Token> nestedTokens2 = getGroupTokens(t.groupIndex);
+//                        if (!nestedTokens2.isEmpty()) {
+//                            sb.append(resolveGroup(input, t.groupIndex, nestedTokens2));
+//                        } else {
+//                            String raw = getGroup(input, t.groupIndex);
+//                            if (raw != null) sb.append(raw);
+//                        }
+//                    }
+//                    break;
+//                }
+//                default: {
+//                    if (t.groupIndex >= 0) {
+//                        String raw = getGroup(input, t.groupIndex);
+//                        if (raw != null) sb.append(raw);
+//                    }
+//                    break;
+//                }
+//            }
+//        }
+//        return sb.toString();
+//    }
     
     
 }
