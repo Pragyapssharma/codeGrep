@@ -52,6 +52,22 @@ public class Captures {
             return getGroup(input, idx);
         }
     	
+    	boolean reconstructible = true;
+        for (Token t : groupTokens) {
+            if (t.quantifier != Token.Quantifier.ONE) { reconstructible = false; break; }
+            switch (t.type) {
+                case CHAR:
+                case BACKREF:
+                case GROUP:
+                    break;
+                default:
+                    reconstructible = false; break;
+            }
+            if (!reconstructible) break;
+        }
+        if (!reconstructible) return getGroup(input, idx);
+        
+    	
     	StringBuilder sb = new StringBuilder();
     	
         for (Token t : groupTokens) {
@@ -69,20 +85,18 @@ public class Captures {
                     }
                     break;
                 case GROUP: {
-                    // Try to resolve nested group structurally first
-                    if (t.groupIndex >= 0) {
-                        nestedTokens = getGroupTokens(t.groupIndex);
-                        if (!nestedTokens.isEmpty()) {
-                            sb.append(resolveGroup(input, t.groupIndex, nestedTokens));
-                            break;
+                	if (t.groupIndex >= 0) {
+                        List<Token> nestedTokens2 = getGroupTokens(t.groupIndex);
+                        if (!nestedTokens2.isEmpty()) {
+                            sb.append(resolveGroup(input, t.groupIndex, nestedTokens2));
+                        } else {
+                            String raw = getGroup(input, t.groupIndex);
+                            if (raw != null) sb.append(raw);
                         }
-                        String raw = getGroup(input, t.groupIndex);
-                        if (raw != null) sb.append(raw);
                     }
                     break;
                 }
                 default: {
-                    // Fallback: if this token corresponds to a captured group span, use it
                     if (t.groupIndex >= 0) {
                         String raw = getGroup(input, t.groupIndex);
                         if (raw != null) sb.append(raw);
