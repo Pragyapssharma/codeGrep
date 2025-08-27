@@ -57,13 +57,14 @@ public class Token {
                 }
                 return -1;
             case BACKREF: {
-            	List<Token> tokens = caps.getGroupTokens(backrefIndex);
-                String resolved = tokens.isEmpty()
-                    ? caps.getGroup(input, backrefIndex)
-                    : caps.resolveGroup(input, backrefIndex, tokens);
-                
-                System.out.println("Resolving \\" + backrefIndex + " to: '" + resolved + "'");
-                
+            	String raw = caps.getGroup(input, backrefIndex);
+                String resolved;
+                if (raw != null) {
+                    resolved = raw; // prefer already-finalized capture
+                } else {
+                    List<Token> tokens = caps.getGroupTokens(backrefIndex);
+                    resolved = tokens.isEmpty() ? null : caps.resolveGroup(input, backrefIndex, tokens);
+                }
                 if (resolved == null) return -1;
                 int len = resolved.length();
                 if (i + len <= input.length() && input.startsWith(resolved, i)) {
