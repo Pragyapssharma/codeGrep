@@ -57,21 +57,21 @@ public class Token {
                 }
                 return -1;
             case BACKREF: {
-            	 String resolved = caps.getGroup(input, backrefIndex);
+            	 List<Token> tokens = caps.getGroupTokens(backrefIndex);
+                 String resolved = null;
 
-            	    if (resolved == null) {
-            	        List<Token> tokens = caps.getGroupTokens(backrefIndex);
-            	        if (!tokens.isEmpty()) {
-            	            resolved = caps.resolveGroup(input, backrefIndex, tokens);
-            	        }
-            	    }
+                 if (!tokens.isEmpty()) {
+                     resolved = caps.resolveGroup(input, backrefIndex, tokens);
+                 } else {
+                     resolved = caps.getGroup(input, backrefIndex);
+                 }
 
-            	    if (resolved == null) return -1;
-            	    int len = resolved.length();
-            	    if (i + len <= input.length() && input.startsWith(resolved, i)) {
-            	        return i + len;
-            	    }
-            	    return -1;
+                 if (resolved == null) return -1;
+                 int len = resolved.length();
+                 if (i + len <= input.length() && input.startsWith(resolved, i)) {
+                     return i + len;
+                 }
+                 return -1;
             }
            default:
                 return -1;
