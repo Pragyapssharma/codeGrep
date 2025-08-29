@@ -247,16 +247,11 @@ public class RegexMatcher {
     
     private int matchAtomOnce(String input, int pos, Token token, Captures caps) {
         if (token.type == Token.TokenType.GROUP) {
-            int res = matchGroupOnce(input, pos, token, caps);
-            
-            if (res != -1 && token.capturing) {
-                caps.set(token.groupIndex, pos, res);
-                caps.setTokens(token.groupIndex, token.groupTokens);
-            }
-            return res;
+            return matchGroupOnce(input, pos, token, caps);
         }
         return token.matchOnce(input, pos, caps);
     }
+
 
     private int matchTokens(String input, int i, List<Token> groupTokens, Captures caps) {
         
