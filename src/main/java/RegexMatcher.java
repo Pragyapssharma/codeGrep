@@ -239,7 +239,9 @@ public class RegexMatcher {
 
         if (groupToken.capturing) {
             caps.set(groupToken.groupIndex, i, res);
-            caps.setTokens(groupToken.groupIndex, groupToken.groupTokens);
+            if (groupToken.groupTokens != null) {
+                caps.setTokens(groupToken.groupIndex, groupToken.groupTokens);
+            }
         }
 
         return res;
