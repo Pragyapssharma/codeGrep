@@ -62,8 +62,10 @@ public class Token {
 
                  if (!tokens.isEmpty()) {
                      resolved = caps.resolveGroup(input, backrefIndex, tokens);
+                     System.err.printf("[DEBUG] Resolving \\%d from tokens -> '%s'%n", backrefIndex, resolved);
                  } else {
                      resolved = caps.getGroup(input, backrefIndex);
+                     System.err.printf("[DEBUG] Resolving \\%d from raw -> '%s'%n", backrefIndex, resolved);
                  }
 
                  if (resolved == null) return -1;

@@ -239,7 +239,7 @@ public class RegexMatcher {
 
         if (groupToken.capturing) {
             caps.set(groupToken.groupIndex, i, res);
-            caps.setTokens(groupToken.groupIndex, groupToken.groupTokens); // moved here
+            caps.setTokens(groupToken.groupIndex, groupToken.groupTokens);
         }
 
         return res;
@@ -259,6 +259,9 @@ public class RegexMatcher {
 
         while (j < groupTokens.size()) {
             Token token = groupTokens.get(j);
+            
+            System.err.printf("[DEBUG] Matching token %s at input[%d]: '%s'%n",
+            	    token.type, pos, pos < input.length() ? input.substring(pos) : "<EOF>");
 
             if (token.type == Token.TokenType.ALTERNATION) {
                 List<Token> remainder = groupTokens.subList(j + 1, groupTokens.size());

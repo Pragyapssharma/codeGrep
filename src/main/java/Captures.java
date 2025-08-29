@@ -22,6 +22,7 @@ public class Captures {
 
     public void set(int idx, int start, int end) {
         groups.put(idx, new Span(start, end));
+       System.out.println("in Captures.set idx :" + idx+ " start : "+start+" end : "+ end);
     }
 
     public String getGroup(String input, int idx) {
@@ -33,6 +34,7 @@ public class Captures {
     
     public void setTokens(int idx, List<Token> tokens) {
         groupTokenMap.put(idx, tokens);
+        System.err.printf("[DEBUG] Group %d tokens: %s%n", idx, tokensToString(tokens));
     }
 
     public List<Token> getGroupTokens(int idx) {
@@ -118,6 +120,18 @@ public class Captures {
         }
         return sb.toString();
     }
+    
+    private String tokensToString(List<Token> tokens) {
+        StringBuilder sb = new StringBuilder();
+        for (Token t : tokens) {
+            sb.append(t.type);
+            if (t.type == Token.TokenType.CHAR) sb.append("('").append(t.text).append("')");
+            if (t.type == Token.TokenType.BACKREF) sb.append("(\\").append(t.backrefIndex).append(")");
+            sb.append(" ");
+        }
+        return sb.toString().trim();
+    }
+
 
     
 //    public String resolveGroup(String input, int idx, List<Token> groupTokens) {
