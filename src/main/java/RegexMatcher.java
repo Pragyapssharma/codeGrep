@@ -234,16 +234,12 @@ public class RegexMatcher {
     }
 
     private int matchGroupOnce(String input, int i, Token groupToken, Captures caps) {
-    	
-    	if (groupToken.capturing) {
-            caps.setTokens(groupToken.groupIndex, groupToken.groupTokens);
-        }
-    	
         int res = matchTokens(input, i, groupToken.groupTokens, caps);
         if (res == -1) return -1;
 
         if (groupToken.capturing) {
             caps.set(groupToken.groupIndex, i, res);
+            caps.setTokens(groupToken.groupIndex, groupToken.groupTokens); // moved here
         }
 
         return res;
