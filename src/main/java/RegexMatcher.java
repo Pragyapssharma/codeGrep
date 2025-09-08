@@ -409,15 +409,6 @@ public class RegexMatcher {
         return pos;
     }
 
- // Helper to flatten alternatives into a single list
-    private List<Token> flattenAlternatives(List<List<Token>> alternatives) {
-        List<Token> flat = new ArrayList<>();
-        for (List<Token> branch : alternatives) {
-            flat.addAll(branch);
-        }
-        return flat;
-    }
-
     private List<Token> tokenize(String pattern) {
         List<Token> tokens = new ArrayList<>();
         for (int i = 0; i < pattern.length();) {
@@ -449,18 +440,15 @@ public class RegexMatcher {
                 }
 
                 if (alternatives.size() == 1) {
-                    // Single branch group
                     token = new Token(alternatives.get(0), Token.TokenType.GROUP);
                 } else {
-                    // Alternation group
                     token = new Token(alternatives);
                 }
 
-                // Assign this group's index
                 token.capturing = true;
                 token.groupIndex = nextGroupIndex++;
 
-                // Recursively assign indices to all nested groups
+                // Assign indices to all nested groups inside this group
                 if (token.groupTokens != null) {
                     assignGroupIndicesRecursively(token.groupTokens);
                 } else if (token.alternatives != null) {
@@ -481,7 +469,6 @@ public class RegexMatcher {
                     token = new Token(Token.TokenType.WORD, "");
                     i += 2;
                 } else if (Character.isDigit(next)) {
-                    // multi-digit backrefs supported
                     int start = j;
                     while (j < pattern.length() && Character.isDigit(pattern.charAt(j))) j++;
                     int refNum = Integer.parseInt(pattern.substring(start, j));
@@ -522,7 +509,6 @@ public class RegexMatcher {
         }
         return tokens;
     }
-
 
     private void assignGroupIndicesRecursively(List<Token> tokens) {
         for (Token t : tokens) {
