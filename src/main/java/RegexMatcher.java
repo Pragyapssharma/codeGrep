@@ -458,7 +458,8 @@ public class RegexMatcher {
                 token.capturing = true;
                 token.groupIndex = nextGroupIndex++;
 
-                // Also sweep all immediate nested groups (regardless of alternation) to guarantee indices
+                assignGroupIndicesRecursively(alternatives);
+
                 List<Token> sweep = (alternatives.size() == 1) ? alternatives.get(0) : flattenAlternatives(alternatives);
                 for (Token t : sweep) {
                     if (t.type == Token.TokenType.GROUP && t.groupIndex < 0) {
@@ -531,6 +532,24 @@ public class RegexMatcher {
         return flat;
     }
     
+    private void assignGroupIndicesRecursively(List<List<Token>> alternatives) {
+        for (List<Token> branch : alternatives) {
+            for (Token t : branch) {
+                if (t.type == Token.TokenType.GROUP) {
+                    if (t.groupIndex < 0) {
+                        t.capturing = true;
+                        t.groupIndex = nextGroupIndex++;
+                    }
+                    // Recurse into this group's own tokens
+                    if (t.groupTokens != null) {
+                        assignGroupIndicesRecursively(List.of(t.groupTokens));
+                    } else if (t.alternatives != null) {
+                        assignGroupIndicesRecursively(t.alternatives);
+                    }
+                }
+            }
+        }
+    }
     
     private int findClosingParen(String pattern, int start) {
         int depth = 0;
