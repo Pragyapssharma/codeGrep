@@ -416,6 +416,9 @@ public class RegexMatcher {
             Token token;
 
             if (c == '(') {
+                // Reserve this group's index BEFORE tokenizing inner content
+                int myIndex = nextGroupIndex++;
+
                 int end = findClosingParen(pattern, i);
                 String group = pattern.substring(i + 1, end);
 
@@ -426,6 +429,7 @@ public class RegexMatcher {
                 for (int j = 0; j <= group.length(); j++) {
                     if (j == group.length() || (group.charAt(j) == '|' && depth == 0)) {
                         String part = group.substring(last, j);
+                        // Tokenize the inner part; any nested '(' inside will get indices AFTER myIndex
                         List<Token> partTokens = tokenize(part);
                         alternatives.add(partTokens);
                         last = j + 1;
@@ -446,16 +450,7 @@ public class RegexMatcher {
                 }
 
                 token.capturing = true;
-                token.groupIndex = nextGroupIndex++;
-
-                // Assign indices to all nested groups inside this group
-                if (token.groupTokens != null) {
-                    assignGroupIndicesRecursively(token.groupTokens);
-                } else if (token.alternatives != null) {
-                    for (List<Token> branch : token.alternatives) {
-                        assignGroupIndicesRecursively(branch);
-                    }
-                }
+                token.groupIndex = myIndex;
 
                 i = end + 1;
 
@@ -469,6 +464,7 @@ public class RegexMatcher {
                     token = new Token(Token.TokenType.WORD, "");
                     i += 2;
                 } else if (Character.isDigit(next)) {
+                    // multi-digit backrefs supported
                     int start = j;
                     while (j < pattern.length() && Character.isDigit(pattern.charAt(j))) j++;
                     int refNum = Integer.parseInt(pattern.substring(start, j));
