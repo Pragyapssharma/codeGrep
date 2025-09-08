@@ -427,12 +427,15 @@ public class RegexMatcher {
                     if (j == group.length() || (group.charAt(j) == '|' && depth == 0)) {
                         String part = group.substring(last, j);
                         List<Token> partTokens = tokenize(part);
+
+                        // Ensure nested groups inside each branch have indices
                         for (Token t : partTokens) {
-                            if (t.type == Token.TokenType.GROUP && !t.capturing) {
+                            if (t.type == Token.TokenType.GROUP && t.groupIndex < 0) {
                                 t.capturing = true;
                                 t.groupIndex = nextGroupIndex++;
                             }
                         }
+
                         alternatives.add(partTokens);
                         last = j + 1;
                     } else if (group.charAt(j) == '(') {
@@ -451,10 +454,21 @@ public class RegexMatcher {
                     token = new Token(alternatives);
                 }
 
+                // Assign this group's index
                 token.capturing = true;
                 token.groupIndex = nextGroupIndex++;
+
+                // Also sweep all immediate nested groups (regardless of alternation) to guarantee indices
+                List<Token> sweep = (alternatives.size() == 1) ? alternatives.get(0) : flattenAlternatives(alternatives);
+                for (Token t : sweep) {
+                    if (t.type == Token.TokenType.GROUP && t.groupIndex < 0) {
+                        t.capturing = true;
+                        t.groupIndex = nextGroupIndex++;
+                    }
+                }
+
                 i = end + 1;
-            
+
             } else if (c == '\\' && i + 1 < pattern.length()) {
                 int j = i + 1;
                 char next = pattern.charAt(j);
@@ -506,6 +520,17 @@ public class RegexMatcher {
         }
         return tokens;
     }
+
+    
+    
+    private List<Token> flattenAlternatives(List<List<Token>> alternatives) {
+        List<Token> flat = new ArrayList<>();
+        for (List<Token> branch : alternatives) {
+            flat.addAll(branch);
+        }
+        return flat;
+    }
+    
     
     private int findClosingParen(String pattern, int start) {
         int depth = 0;
