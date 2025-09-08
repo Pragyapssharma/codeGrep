@@ -48,7 +48,11 @@ public class RegexMatcher {
                         Captures temp = caps.copy();
                         int next = matchTokens(input, i, alt, temp);
                         if (next != -1) {
-                            if (token.capturing) temp.set(token.groupIndex, i, next);
+                            if (token.capturing) {
+                                temp.set(token.groupIndex, i, next);
+                                // IMPORTANT: store the chosen branch tokens for nested backref resolution
+                                temp.setTokens(token.groupIndex, alt);
+                            }
                             if (matchesRemaining(input, next, j + 1, temp)) {
                                 caps.replaceWith(temp);
                                 return true;
@@ -63,7 +67,7 @@ public class RegexMatcher {
                         Captures temp = caps.copy();
                         int next = matchTokens(input, i, alt, temp);
                         if (next != -1) {
-                        	if (token.capturing) {
+                            if (token.capturing) {
                                 temp.set(token.groupIndex, i, next);
                                 temp.setTokens(token.groupIndex, alt);
                             }
@@ -88,7 +92,7 @@ public class RegexMatcher {
                             Captures temp = caps.copy();
                             int next = matchTokens(input, pos, alt, temp);
                             if (next != -1 && next > pos) {
-                            	if (token.capturing) {
+                                if (token.capturing) {
                                     temp.set(token.groupIndex, pos, next);
                                     temp.setTokens(token.groupIndex, alt);
                                 }
@@ -240,6 +244,7 @@ public class RegexMatcher {
         if (groupToken.capturing) {
             caps.set(groupToken.groupIndex, i, res);
             if (groupToken.groupTokens != null) {
+                // Store the group’s structure for later nested backref resolution
                 caps.setTokens(groupToken.groupIndex, groupToken.groupTokens);
             }
         }
@@ -254,17 +259,16 @@ public class RegexMatcher {
         return token.matchOnce(input, pos, caps);
     }
 
-
     private int matchTokens(String input, int i, List<Token> groupTokens, Captures caps) {
         
-    	int j = 0;
+        int j = 0;
         int pos = i;
 
         while (j < groupTokens.size()) {
             Token token = groupTokens.get(j);
             
             System.err.printf("[DEBUG] Matching token %s at input[%d]: '%s'%n",
-            	    token.type, pos, pos < input.length() ? input.substring(pos) : "<EOF>");
+                    token.type, pos, pos < input.length() ? input.substring(pos) : "<EOF>");
 
             if (token.type == Token.TokenType.ALTERNATION) {
                 List<Token> remainder = groupTokens.subList(j + 1, groupTokens.size());
@@ -317,7 +321,7 @@ public class RegexMatcher {
                             Captures branchCaps = caps.copy();
                             int mid = matchTokens(input, cur, altBranch, branchCaps);
                             if (mid != -1 && mid > cur) {
-                            	if (token.capturing) {
+                                if (token.capturing) {
                                     branchCaps.set(token.groupIndex, cur, mid);
                                     branchCaps.setTokens(token.groupIndex, altBranch);
                                 }
@@ -355,17 +359,17 @@ public class RegexMatcher {
             List<Token> remainder = groupTokens.subList(j + 1, groupTokens.size());
 
             if (token.quantifier == Token.Quantifier.ONE) {
-            	int np = matchAtomOnce(input, pos, token, caps);
+                int np = matchAtomOnce(input, pos, token, caps);
                 if (np == -1) return -1;
                 pos = np;
                 j++;
                 continue;
 
             } else if (token.quantifier == Token.Quantifier.ZERO_OR_ONE) {
-            	Captures takeCaps = caps.copy();
-            	int np = matchAtomOnce(input, pos, token, takeCaps);
+                Captures takeCaps = caps.copy();
+                int np = matchAtomOnce(input, pos, token, takeCaps);
                 if (np != -1) {
-                	int endPos = matchTokens(input, np, remainder, takeCaps);
+                    int endPos = matchTokens(input, np, remainder, takeCaps);
                     if (endPos != -1) {
                         caps.replaceWith(takeCaps);
                         return endPos;
@@ -451,7 +455,6 @@ public class RegexMatcher {
                 token.groupIndex = nextGroupIndex++;
                 i = end + 1;
             
-
             } else if (c == '\\' && i + 1 < pattern.length()) {
                 int j = i + 1;
                 char next = pattern.charAt(j);
