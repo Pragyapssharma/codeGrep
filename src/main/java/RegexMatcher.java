@@ -409,6 +409,34 @@ public class RegexMatcher {
         return pos;
     }
 
+ // Helper to flatten alternatives into a single list
+    private List<Token> flattenAlternatives(List<List<Token>> alternatives) {
+        List<Token> flat = new ArrayList<>();
+        for (List<Token> branch : alternatives) {
+            flat.addAll(branch);
+        }
+        return flat;
+    }
+
+    // Recursive helper to assign indices to all nested groups
+    private void assignGroupIndicesRecursively(List<Token> tokens) {
+        for (Token t : tokens) {
+            if (t.type == Token.TokenType.GROUP) {
+                if (t.groupIndex < 0) {
+                    t.capturing = true;
+                    t.groupIndex = nextGroupIndex++;
+                }
+                if (t.groupTokens != null) {
+                    assignGroupIndicesRecursively(t.groupTokens);
+                } else if (t.alternatives != null) {
+                    for (List<Token> branch : t.alternatives) {
+                        assignGroupIndicesRecursively(branch);
+                    }
+                }
+            }
+        }
+    }
+
     private List<Token> tokenize(String pattern) {
         List<Token> tokens = new ArrayList<>();
         for (int i = 0; i < pattern.length();) {
@@ -427,15 +455,6 @@ public class RegexMatcher {
                     if (j == group.length() || (group.charAt(j) == '|' && depth == 0)) {
                         String part = group.substring(last, j);
                         List<Token> partTokens = tokenize(part);
-
-                        // Ensure nested groups inside each branch have indices
-                        for (Token t : partTokens) {
-                            if (t.type == Token.TokenType.GROUP && t.groupIndex < 0) {
-                                t.capturing = true;
-                                t.groupIndex = nextGroupIndex++;
-                            }
-                        }
-
                         alternatives.add(partTokens);
                         last = j + 1;
                     } else if (group.charAt(j) == '(') {
@@ -458,14 +477,11 @@ public class RegexMatcher {
                 token.capturing = true;
                 token.groupIndex = nextGroupIndex++;
 
-                assignGroupIndicesRecursively(alternatives);
-
-                List<Token> sweep = (alternatives.size() == 1) ? alternatives.get(0) : flattenAlternatives(alternatives);
-                for (Token t : sweep) {
-                    if (t.type == Token.TokenType.GROUP && t.groupIndex < 0) {
-                        t.capturing = true;
-                        t.groupIndex = nextGroupIndex++;
-                    }
+                // Ensure all nested groups inside this group have indices
+                if (alternatives.size() == 1) {
+                    assignGroupIndicesRecursively(alternatives.get(0));
+                } else {
+                    assignGroupIndicesRecursively(flattenAlternatives(alternatives));
                 }
 
                 i = end + 1;
@@ -480,7 +496,6 @@ public class RegexMatcher {
                     token = new Token(Token.TokenType.WORD, "");
                     i += 2;
                 } else if (Character.isDigit(next)) {
-                    // multi-digit backrefs supported
                     int start = j;
                     while (j < pattern.length() && Character.isDigit(pattern.charAt(j))) j++;
                     int refNum = Integer.parseInt(pattern.substring(start, j));
@@ -520,35 +535,6 @@ public class RegexMatcher {
             tokens.add(token);
         }
         return tokens;
-    }
-
-    
-    
-    private List<Token> flattenAlternatives(List<List<Token>> alternatives) {
-        List<Token> flat = new ArrayList<>();
-        for (List<Token> branch : alternatives) {
-            flat.addAll(branch);
-        }
-        return flat;
-    }
-    
-    private void assignGroupIndicesRecursively(List<List<Token>> alternatives) {
-        for (List<Token> branch : alternatives) {
-            for (Token t : branch) {
-                if (t.type == Token.TokenType.GROUP) {
-                    if (t.groupIndex < 0) {
-                        t.capturing = true;
-                        t.groupIndex = nextGroupIndex++;
-                    }
-                    // Recurse into this group's own tokens
-                    if (t.groupTokens != null) {
-                        assignGroupIndicesRecursively(List.of(t.groupTokens));
-                    } else if (t.alternatives != null) {
-                        assignGroupIndicesRecursively(t.alternatives);
-                    }
-                }
-            }
-        }
     }
     
     private int findClosingParen(String pattern, int start) {
