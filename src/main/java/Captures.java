@@ -11,6 +11,7 @@ public class Captures {
 
     private final Map<Integer, Span> groups = new HashMap<>();
     private final Map<Integer, List<Token>> groupTokenMap = new HashMap<>();
+    private final java.util.Set<Integer> lockedGroups = new java.util.HashSet<>();
 
 
     public Captures copy() {
@@ -21,8 +22,9 @@ public class Captures {
     }
 
     public void set(int idx, int start, int end) {
-        if (!groups.containsKey(idx)) {
+        if (!lockedGroups.contains(idx)) {
             groups.put(idx, new Span(start, end));
+            lockedGroups.add(idx);
             System.out.println("in Captures.set idx :" + idx + " start : " + start + " end : " + end);
         }
     }
@@ -35,19 +37,37 @@ public class Captures {
     }
     
     public void setTokens(int idx, List<Token> tokens) {
-        groupTokenMap.putIfAbsent(idx, tokens);
-        System.err.printf("[DEBUG] Group %d tokens: %s%n", idx, tokensToString(tokens));
+        if (!lockedGroups.contains(idx)) {
+            groupTokenMap.put(idx, tokens);
+            lockedGroups.add(idx);
+            System.err.printf("[DEBUG] Group %d tokens: %s%n", idx, tokensToString(tokens));
+        }
     }
 
     public List<Token> getGroupTokens(int idx) {
         return groupTokenMap.getOrDefault(idx, List.of());
     }
 
+//    public void replaceWith(Captures other) {
+//        this.groups.clear();
+//        this.groups.putAll(other.groups);
+//        this.groupTokenMap.clear();
+//        this.groupTokenMap.putAll(other.groupTokenMap);
+//    }
+    
     public void replaceWith(Captures other) {
-        this.groups.clear();
-        this.groups.putAll(other.groups);
-        this.groupTokenMap.clear();
-        this.groupTokenMap.putAll(other.groupTokenMap);
+        for (Map.Entry<Integer, Span> entry : other.groups.entrySet()) {
+            int idx = entry.getKey();
+            if (!lockedGroups.contains(idx)) {
+                groups.put(idx, entry.getValue());
+            }
+        }
+        for (Map.Entry<Integer, List<Token>> entry : other.groupTokenMap.entrySet()) {
+            int idx = entry.getKey();
+            if (!lockedGroups.contains(idx)) {
+                groupTokenMap.put(idx, entry.getValue());
+            }
+        }
     }
     
     public String resolveGroup(String input, int idx, List<Token> groupTokens) {
