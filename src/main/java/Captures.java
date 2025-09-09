@@ -21,8 +21,10 @@ public class Captures {
     }
 
     public void set(int idx, int start, int end) {
-        groups.put(idx, new Span(start, end));
-       System.out.println("in Captures.set idx :" + idx+ " start : "+start+" end : "+ end);
+        if (!groups.containsKey(idx)) {
+            groups.put(idx, new Span(start, end));
+            System.out.println("in Captures.set idx :" + idx + " start : " + start + " end : " + end);
+        }
     }
 
     public String getGroup(String input, int idx) {
