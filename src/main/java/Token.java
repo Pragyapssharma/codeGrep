@@ -57,23 +57,31 @@ public class Token {
                 }
                 return -1;
             case BACKREF: {
-            	 List<Token> tokens = caps.getGroupTokens(backrefIndex);
-                 String resolved = null;
+            	List<Token> tokens = caps.getGroupTokens(backrefIndex);
+                String resolved = null;
 
-                 if (!tokens.isEmpty()) {
-                     resolved = caps.resolveGroup(input, backrefIndex, tokens);
-                     System.err.printf("[DEBUG] Resolving \\%d from tokens -> '%s'%n", backrefIndex, resolved);
-                 } else {
-                     resolved = caps.getGroup(input, backrefIndex);
-                     System.err.printf("[DEBUG] Resolving \\%d from raw -> '%s'%n", backrefIndex, resolved);
-                 }
+                if (!tokens.isEmpty()) {
+                    resolved = caps.resolveGroup(input, backrefIndex, tokens);
+                    System.err.printf("[DEBUG] Resolving \\%d from tokens -> '%s'%n", backrefIndex, resolved);
 
-                 if (resolved == null) return -1;
-                 int len = resolved.length();
-                 if (i + len <= input.length() && input.startsWith(resolved, i)) {
-                     return i + len;
-                 }
-                 return -1;
+                    // Match the structure of the resolved tokens against input[i...]
+                    Captures tempCaps = caps.copy();
+                    int next = RegexMatcher.matchTokensStatic(input, i, tokens, tempCaps);
+                    if (next != -1) {
+                        caps.replaceWith(tempCaps);
+                        return next;
+                    }
+                } else {
+                    resolved = caps.getGroup(input, backrefIndex);
+                    System.err.printf("[DEBUG] Resolving \\%d from raw -> '%s'%n", backrefIndex, resolved);
+                    if (resolved == null) return -1;
+                    int len = resolved.length();
+                    if (i + len <= input.length() && input.startsWith(resolved, i)) {
+                        return i + len;
+                    }
+                }
+
+                return -1;
             }
            default:
                 return -1;

@@ -524,6 +524,11 @@ public class RegexMatcher {
         }
     }
     
+    public static int matchTokensStatic(String input, int i, List<Token> tokens, Captures caps) {
+        RegexMatcher dummy = new RegexMatcher(""); // dummy instance
+        return dummy.matchTokens(input, i, tokens, caps);
+    }
+    
     private int findClosingParen(String pattern, int start) {
         int depth = 0;
         for (int i = start; i < pattern.length(); i++) {
