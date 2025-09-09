@@ -33,7 +33,7 @@ public class Captures {
     }
     
     public void setTokens(int idx, List<Token> tokens) {
-        groupTokenMap.put(idx, tokens);
+        groupTokenMap.putIfAbsent(idx, tokens);
         System.err.printf("[DEBUG] Group %d tokens: %s%n", idx, tokensToString(tokens));
     }
 
