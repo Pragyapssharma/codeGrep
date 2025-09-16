@@ -338,10 +338,6 @@ public class RegexMatcher {
                             Captures branchCaps = caps.copy();
                             int mid = matchTokens(input, cur, altBranch, branchCaps);
                             if (mid != -1 && mid > cur) {
-                                if (token.capturing) {
-                                    branchCaps.set(token.groupIndex, cur, mid);
-                                    branchCaps.setTokens(token.groupIndex, altBranch);
-                                }
                                 if (mid > bestNext) {
                                     bestNext = mid;
                                     bestCaps = branchCaps;
@@ -357,9 +353,16 @@ public class RegexMatcher {
                     }
                     if (!firstMatched) return -1;
 
+                    remainder = groupTokens.subList(j + 1, groupTokens.size());
                     for (int idx = posHistory.size() - 1; idx >= 0; idx--) {
                         int after = posHistory.get(idx);
                         Captures branchCaps = capHistory.get(idx).copy();
+                        
+                        if (token.capturing) {
+                            branchCaps.set(token.groupIndex, pos, after);
+                            branchCaps.setTokens(token.groupIndex, token.alternatives.get(0));
+                        }
+                        
                         int endPos = matchTokens(input, after, remainder, branchCaps);
                         if (endPos != -1) {
                             caps.replaceWith(branchCaps);
