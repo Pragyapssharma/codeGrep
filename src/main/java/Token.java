@@ -82,7 +82,7 @@ public class Token {
             	                backrefIndex, resolved, i, input.substring(i));
             	        if (resolved == null || resolved.isEmpty()) return -1;
             	        int len = resolved.length();
-            	        if (i + len <= input.length() && input.startsWith(resolved, i)) {
+            	        if (resolved != null && !resolved.isEmpty() && input.startsWith(resolved, i)) {
             	            return i + len;
             	        }
             	    }

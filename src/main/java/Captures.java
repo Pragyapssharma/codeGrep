@@ -18,13 +18,14 @@ public class Captures {
         Captures c = new Captures();
         c.groups.putAll(this.groups);
         c.groupTokenMap.putAll(this.groupTokenMap);
+        c.lockedGroups.addAll(this.lockedGroups);
         return c;
     }
 
     public void set(int idx, int start, int end) {
         if (!lockedGroups.contains(idx)) {
             groups.put(idx, new Span(start, end));
-            lockedGroups.add(idx);
+            lockedGroups.add(idx); // Lock after first set
             System.out.println("in Captures.set idx :" + idx + " start : " + start + " end : " + end);
         }
     }
