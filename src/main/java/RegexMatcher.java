@@ -448,6 +448,7 @@ public class RegexMatcher {
                         String part = group.substring(last, j);
                         // Tokenize the inner part; any nested '(' inside will get indices AFTER myIndex
                         List<Token> partTokens = tokenize(part);
+                        assignGroupIndicesRecursively(partTokens);
                         alternatives.add(partTokens);
                         last = j + 1;
                     } else if (group.charAt(j) == '(') {
@@ -462,6 +463,7 @@ public class RegexMatcher {
 
                 if (alternatives.size() == 1) {
                     token = new Token(alternatives.get(0), Token.TokenType.GROUP);
+                    token.groupTokens = alternatives.get(0);
                 } else {
                     token = new Token(alternatives);
                 }
@@ -525,7 +527,7 @@ public class RegexMatcher {
 
     private void assignGroupIndicesRecursively(List<Token> tokens) {
         for (Token t : tokens) {
-            if (t.type == Token.TokenType.GROUP) {
+            if (t.type == Token.TokenType.GROUP || t.type == Token.TokenType.ALTERNATION) {
                 if (t.groupIndex < 0) {
                     t.capturing = true;
                     t.groupIndex = nextGroupIndex++;
