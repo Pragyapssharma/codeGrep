@@ -45,19 +45,13 @@ public class Token {
                 if (i < input.length() && isWord(input.charAt(i))) return i + 1;
                 return -1;
             case POSITIVE_GROUP:
-                if (i < input.length()) {
-                    char c = input.charAt(i);
-                    if (inCharClass(c, text)) return i + 1;
-                }
+                if (i < input.length() && inCharClass(input.charAt(i), text)) return i + 1;
                 return -1;
             case NEGATIVE_GROUP:
-                if (i < input.length()) {
-                    char c = input.charAt(i);
-                    if (!inCharClass(c, text)) return i + 1;
-                }
+                if (i < input.length() && !inCharClass(input.charAt(i), text)) return i + 1;
                 return -1;
             case BACKREF: {
-            	List<Token> tokens = caps.getGroupTokens(backrefIndex);
+                List<Token> tokens = caps.getGroupTokens(backrefIndex);
                 String resolved = null;
 
                 if (!tokens.isEmpty()) {
@@ -65,8 +59,9 @@ public class Token {
                     System.err.printf("[DEBUG] Resolving \\%d from tokens -> '%s'%n", backrefIndex, resolved);
 
                     // Prefer literal match first
-                    if (resolved != null && !resolved.isEmpty() && i + resolved.length() <= input.length()
-                            && input.startsWith(resolved, i)) {
+                    if (resolved != null && !resolved.isEmpty() &&
+                        i + resolved.length() <= input.length() &&
+                        input.startsWith(resolved, i)) {
                         return i + resolved.length();
                     }
 
@@ -84,14 +79,14 @@ public class Token {
                     System.err.printf("[DEBUG] Backref \\%d resolved to '%s', matching at input[%d]: '%s'%n",
                             backrefIndex, resolved, i, input.substring(i));
                     if (resolved == null || resolved.isEmpty()) return -1;
-                    int len = resolved.length();
                     if (input.startsWith(resolved, i)) {
-                        return i + len;
+                        return i + resolved.length();
                     }
                 }
+
                 return -1;
-            	}
-           default:
+            }
+            default:
                 return -1;
         }
     }
