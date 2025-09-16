@@ -12,6 +12,10 @@ public class Captures {
     private final Map<Integer, Span> groups = new HashMap<>();
     private final Map<Integer, List<Token>> groupTokenMap = new HashMap<>();
     private final java.util.Set<Integer> lockedGroups = new java.util.HashSet<>();
+    private boolean allowLocking = true;
+
+    public void disableLocking() { this.allowLocking = false; }
+    public void enableLocking() { this.allowLocking = true; }
 
 
     public Captures copy() {
@@ -19,13 +23,14 @@ public class Captures {
         c.groups.putAll(this.groups);
         c.groupTokenMap.putAll(this.groupTokenMap);
         c.lockedGroups.addAll(this.lockedGroups);
+        c.allowLocking = this.allowLocking;
         return c;
     }
 
     public void set(int idx, int start, int end) {
         if (!lockedGroups.contains(idx)) {
             groups.put(idx, new Span(start, end));
-            lockedGroups.add(idx); // Lock after first set
+            if (allowLocking) lockedGroups.add(idx);
             System.out.println("in Captures.set idx :" + idx + " start : " + start + " end : " + end);
         }
     }
@@ -40,7 +45,7 @@ public class Captures {
     public void setTokens(int idx, List<Token> tokens) {
         if (!lockedGroups.contains(idx)) {
             groupTokenMap.put(idx, tokens);
-            lockedGroups.add(idx);
+            if (allowLocking) lockedGroups.add(idx);
             System.err.printf("[DEBUG] Group %d tokens: %s%n", idx, tokensToString(tokens));
         }
     }

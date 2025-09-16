@@ -57,37 +57,39 @@ public class Token {
                 }
                 return -1;
             case BACKREF: {
-            	 List<Token> tokens = caps.getGroupTokens(backrefIndex);
-            	    String resolved = null;
+            	List<Token> tokens = caps.getGroupTokens(backrefIndex);
+                String resolved = null;
 
-            	    if (!tokens.isEmpty()) {
-            	        resolved = caps.resolveGroup(input, backrefIndex, tokens);
-            	        System.err.printf("[DEBUG] Resolving \\%d from tokens -> '%s'%n", backrefIndex, resolved);
+                if (!tokens.isEmpty()) {
+                    resolved = caps.resolveGroup(input, backrefIndex, tokens);
+                    System.err.printf("[DEBUG] Resolving \\%d from tokens -> '%s'%n", backrefIndex, resolved);
 
-            	        if (resolved != null && !resolved.isEmpty() && i + resolved.length() <= input.length()
-            	                && input.startsWith(resolved, i)) {
-            	            return i + resolved.length();
-            	        }
+                    // Prefer literal match first
+                    if (resolved != null && !resolved.isEmpty() && i + resolved.length() <= input.length()
+                            && input.startsWith(resolved, i)) {
+                        return i + resolved.length();
+                    }
 
-            	        Captures tempCaps = caps.copy();
-            	        int next = RegexMatcher.matchTokensStatic(input, i, tokens, tempCaps);
-            	        if (next != -1) {
-            	            caps.replaceWith(tempCaps);
-            	            return next;
-            	        }
+                    // Structural match with locking disabled
+                    Captures tempCaps = caps.copy();
+                    tempCaps.disableLocking(); // prevent overwriting original captures
+                    int next = RegexMatcher.matchTokensStatic(input, i, tokens, tempCaps);
+                    if (next != -1) {
+                        caps.replaceWith(tempCaps);
+                        return next;
+                    }
 
-            	    } else {
-            	        resolved = caps.getGroup(input, backrefIndex);
-            	        System.err.printf("[DEBUG] Backref \\%d resolved to '%s', matching at input[%d]: '%s'%n",
-            	                backrefIndex, resolved, i, input.substring(i));
-            	        if (resolved == null || resolved.isEmpty()) return -1;
-            	        int len = resolved.length();
-            	        if (resolved != null && !resolved.isEmpty() && input.startsWith(resolved, i)) {
-            	            return i + len;
-            	        }
-            	    }
-
-            	    return -1;
+                } else {
+                    resolved = caps.getGroup(input, backrefIndex);
+                    System.err.printf("[DEBUG] Backref \\%d resolved to '%s', matching at input[%d]: '%s'%n",
+                            backrefIndex, resolved, i, input.substring(i));
+                    if (resolved == null || resolved.isEmpty()) return -1;
+                    int len = resolved.length();
+                    if (input.startsWith(resolved, i)) {
+                        return i + len;
+                    }
+                }
+                return -1;
             	}
            default:
                 return -1;
