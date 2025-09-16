@@ -20,6 +20,23 @@ public class RegexMatcher {
         this.anchoredStart = aStart;
         this.anchoredEnd = aEnd;
         this.tokens = tokenize(pattern);
+        storeGroupTokens(this.tokens, new Captures());
+    }
+    
+    private void storeGroupTokens(List<Token> tokens, Captures caps) {
+        for (Token t : tokens) {
+            if (t.capturing && t.groupIndex >= 0) {
+                if (t.groupTokens != null) {
+                    caps.setTokens(t.groupIndex, t.groupTokens);
+                    storeGroupTokens(t.groupTokens, caps);
+                } else if (t.alternatives != null) {
+                    for (List<Token> branch : t.alternatives) {
+                        caps.setTokens(t.groupIndex, branch);
+                        storeGroupTokens(branch, caps);
+                    }
+                }
+            }
+        }
     }
 
     public boolean matches(String input) {
