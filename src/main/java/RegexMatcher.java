@@ -353,21 +353,20 @@ public class RegexMatcher {
                         posHistory.add(bestNext);
                         capHistory.add(bestCaps);
                         cur = bestNext;
-                        caps.replaceWith(bestCaps);
+                        
                     }
                     if (!firstMatched) return -1;
 
                     for (int idx = posHistory.size() - 1; idx >= 0; idx--) {
                         int after = posHistory.get(idx);
-                        Captures ccap = capHistory.get(idx).copy();
-                        Captures saved = caps.copy();
-                        caps.replaceWith(ccap);
-                        int endPos = matchTokens(input, after, remainder, caps);
+                        Captures branchCaps = capHistory.get(idx).copy();
+                        int endPos = matchTokens(input, after, remainder, branchCaps);
                         if (endPos != -1) {
+                            caps.replaceWith(branchCaps);
                             return endPos;
                         }
-                        caps.replaceWith(saved);
                     }
+
                     return -1;
                 }
             }
@@ -395,30 +394,34 @@ public class RegexMatcher {
                 j++;
                 continue;
 
-            } else { // ONE_OR_MORE
+            } else if (token.quantifier == Token.Quantifier.ONE_OR_MORE) {
                 List<Integer> posHistory = new ArrayList<>();
                 List<Captures> capHistory = new ArrayList<>();
                 int cur = pos;
+                boolean firstMatched = false;
+
                 while (true) {
                     Captures temp = caps.copy();
                     int np = matchAtomOnce(input, cur, token, temp);
                     if (np == -1 || np == cur) break;
+                    firstMatched = true;
                     cur = np;
                     posHistory.add(cur);
                     capHistory.add(temp);
                 }
-                if (posHistory.isEmpty()) return -1;
 
-                // Backtrack repetitions against the remainder
+                if (!firstMatched) return -1;
+
                 for (int idx = posHistory.size() - 1; idx >= 0; idx--) {
-                    Captures branchCaps = capHistory.get(idx).copy();
                     int after = posHistory.get(idx);
+                    Captures branchCaps = capHistory.get(idx).copy();
                     int endPos = matchTokens(input, after, remainder, branchCaps);
                     if (endPos != -1) {
                         caps.replaceWith(branchCaps);
                         return endPos;
                     }
                 }
+
                 return -1;
             }
         }
