@@ -357,11 +357,7 @@ public class RegexMatcher {
                     for (int idx = posHistory.size() - 1; idx >= 0; idx--) {
                         int after = posHistory.get(idx);
                         Captures branchCaps = capHistory.get(idx).copy();
-                        
-                        if (token.capturing) {
-                            branchCaps.set(token.groupIndex, pos, after);
-                            branchCaps.setTokens(token.groupIndex, token.alternatives.get(0));
-                        }
+                       
                         
                         int endPos = matchTokens(input, after, remainder, branchCaps);
                         if (endPos != -1) {
